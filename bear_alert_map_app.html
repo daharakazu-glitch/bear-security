@@ -1,0 +1,3241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>クマ出没警戒・地域安全マップシステム | BearWatch GIS</title>
+<style>
+  :root {
+    --bg-main: #f4f6f8;
+    --bg-card: #ffffff;
+    --bg-dark: #1b2631;
+    --bg-header: #16242f;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --accent-primary: #d97706;
+    --accent-primary-hover: #b45309;
+    --danger-red: #dc2626;
+    --danger-bg: #fef2f2;
+    --warning-orange: #ea580c;
+    --warning-bg: #fff7ed;
+    --caution-yellow: #ca8a04;
+    --caution-bg: #fefce8;
+    --safe-green: #16a34a;
+    --safe-bg: #f0fdf4;
+    --info-blue: #2563eb;
+    --info-bg: #eff6ff;
+    --purple-route: #7c3aed;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(15,23,42,0.1);
+    --shadow-lg: 0 10px 25px rgba(15,23,42,0.16);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Emergency Top Alert Banner */
+  #emergency-banner {
+    background: linear-gradient(90deg, #991b1b 0%, #dc2626 50%, #991b1b 100%);
+    color: #ffffff;
+    padding: 8px 16px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.35);
+    z-index: 100;
+  }
+  #emergency-banner.hidden {
+    display: none;
+  }
+  .emergency-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .pulse-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #fef08a;
+    box-shadow: 0 0 0 0 rgba(254, 240, 138, 0.9);
+    animation: pulse-ring 1.5s infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(254, 240, 138, 0.8); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(254, 240, 138, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(254, 240, 138, 0); }
+  }
+  .banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .btn-banner {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-banner:hover {
+    background: rgba(255,255,255,0.32);
+  }
+
+  /* Header */
+  header {
+    background-color: var(--bg-header);
+    color: #ffffff;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-bottom: 1px solid #2d3e50;
+  }
+  .brand-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #f59e0b, #dc2626);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .brand-title h1 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge-offline {
+    font-size: 0.7rem;
+    background: #059669;
+    color: #ecfdf5;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .brand-subtitle {
+    font-size: 0.76rem;
+    color: #94a3b8;
+  }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .role-selector {
+    display: flex;
+    align-items: center;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    gap: 3px;
+  }
+  .role-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .role-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+  }
+  .sound-toggle-btn {
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #e2e8f0;
+    padding: 6px 11px;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sound-toggle-btn.active {
+    border-color: #f59e0b;
+    color: #fde68a;
+  }
+
+  /* Navigation Tabs */
+  .nav-bar {
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    box-shadow: var(--shadow-sm);
+  }
+  .nav-tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  .nav-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .nav-tab:hover {
+    color: var(--text-main);
+    background: #f8fafc;
+  }
+  .nav-tab.active {
+    color: #d97706;
+    border-bottom-color: #d97706;
+    background: #fffbeb;
+  }
+  .tab-badge {
+    font-size: 0.72rem;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+    font-weight: 700;
+  }
+  .tab-badge.danger {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+  .quick-report-btn {
+    background: linear-gradient(135deg, #ea580c, #dc2626);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+  }
+  .quick-report-btn:hover {
+    opacity: 0.93;
+  }
+
+  /* Main Container */
+  main {
+    flex: 1;
+    padding: 16px 20px;
+    max-width: 1600px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .tab-panel {
+    display: none;
+  }
+  .tab-panel.active {
+    display: block;
+  }
+
+  /* KPI Summary Strip */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .kpi-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .kpi-card.alert-high {
+    border-left: 4px solid var(--danger-red);
+  }
+  .kpi-card.alert-mid {
+    border-left: 4px solid var(--warning-orange);
+  }
+  .kpi-card.alert-info {
+    border-left: 4px solid var(--info-blue);
+  }
+  .kpi-card.alert-safe {
+    border-left: 4px solid var(--safe-green);
+  }
+  .kpi-label {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .kpi-val {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-top: 2px;
+  }
+  .kpi-sub {
+    font-size: 0.73rem;
+    color: var(--text-muted);
+  }
+  .kpi-icon {
+    font-size: 1.7rem;
+    opacity: 0.85;
+  }
+
+  /* Map Layout Grid */
+  .map-workspace {
+    display: grid;
+    grid-template-columns: 310px 1fr 350px;
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 1200px) {
+    .map-workspace {
+      grid-template-columns: 280px 1fr;
+    }
+    .map-right-panel {
+      grid-column: 1 / -1;
+    }
+  }
+  @media (max-width: 820px) {
+    .map-workspace {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .panel-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 12px 15px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-body {
+    padding: 14px 15px;
+  }
+
+  /* Filter & Layer Controls */
+  .control-section {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .control-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  .control-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .filter-chip {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s;
+  }
+  .filter-chip.active {
+    background: #1e293b;
+    color: #ffffff;
+    border-color: #1e293b;
+  }
+  .dot-24h { width: 8px; height: 8px; border-radius: 50%; background: #dc2626; display: inline-block; }
+  .dot-3d { width: 8px; height: 8px; border-radius: 50%; background: #ea580c; display: inline-block; }
+  .dot-7d { width: 8px; height: 8px; border-radius: 50%; background: #ca8a04; display: inline-block; }
+  .dot-past { width: 8px; height: 8px; border-radius: 50%; background: #64748b; display: inline-block; }
+
+  .layer-toggle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .layer-toggle-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.81rem;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+  }
+  .layer-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+  }
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #cbd5e1;
+    transition: 0.2s;
+    border-radius: 20px;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+  }
+  input:checked + .slider {
+    background-color: #d97706;
+  }
+  input:checked + .slider:before {
+    transform: translateX(16px);
+  }
+
+  /* Interactive GIS Map Container */
+  .map-center-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .map-toolbar {
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .map-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .map-mode-badge {
+    font-size: 0.76rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: #fef3c7;
+    color: #92400e;
+    font-weight: 700;
+    border: 1px solid #fde68a;
+  }
+  .map-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .map-btn:hover {
+    background: #f1f5f9;
+  }
+  .map-btn.active {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #1d4ed8;
+  }
+
+  .map-viewport {
+    position: relative;
+    width: 100%;
+    height: 600px;
+    background: #e5efe6;
+    overflow: hidden;
+    user-select: none;
+    cursor: grab;
+  }
+  .map-viewport:active {
+    cursor: grabbing;
+  }
+  .map-viewport.pick-mode {
+    cursor: crosshair !important;
+  }
+
+  #gis-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Map Overlays & Floating Legend */
+  .map-floating-legend {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(4px);
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.74rem;
+    box-shadow: var(--shadow-md);
+    max-width: 280px;
+    pointer-events: auto;
+  }
+  .legend-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .legend-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 10px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #334155;
+  }
+
+  .map-zoom-controls {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .zoom-btn {
+    width: 34px;
+    height: 34px;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .zoom-btn:hover {
+    background: #f8fafc;
+  }
+
+  .map-coord-bar {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(15, 23, 42, 0.82);
+    color: #f8fafc;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-family: monospace;
+    pointer-events: none;
+  }
+
+  /* School Route Safety Bar under Map */
+  .school-safety-strip {
+    padding: 10px 14px;
+    background: #fff;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.8rem;
+  }
+  .route-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .route-pill.danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  .route-pill.warning { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
+  .route-pill.safe { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+
+  /* Right Panel: Selected Sighting Detail & Recent Feed */
+  .detail-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 14px;
+  }
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.71rem;
+    font-weight: 700;
+  }
+  .status-verified {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+  }
+  .status-unverified {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+  .status-dismissed {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+  }
+  .urgency-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.71rem;
+    font-weight: 700;
+  }
+  .urgency-critical { background: #dc2626; color: #fff; }
+  .urgency-high { background: #ea580c; color: #fff; }
+  .urgency-medium { background: #ca8a04; color: #fff; }
+  .urgency-low { background: #475569; color: #fff; }
+
+  .detail-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
+    font-size: 0.78rem;
+    margin: 10px 0;
+    background: #fff;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+  }
+  .meta-item span.label {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    display: block;
+  }
+  .meta-item span.val {
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .feed-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .feed-item:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+  }
+  .feed-item.selected {
+    border-color: #d97706;
+    background: #fffbeb;
+    box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.15);
+  }
+  .feed-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+  }
+  .feed-item-title {
+    font-weight: 700;
+    font-size: 0.84rem;
+    color: #1e293b;
+    margin-bottom: 3px;
+  }
+  .feed-item-sub {
+    font-size: 0.75rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Two-Column Panels for Other Tabs */
+  .two-col-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 960px) {
+    .two-col-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Forms */
+  .form-group {
+    margin-bottom: 14px;
+  }
+  .form-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    color: #334155;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .form-control {
+    width: 100%;
+    padding: 8px 11px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.86rem;
+    font-family: inherit;
+    background: #fff;
+    color: #1e293b;
+  }
+  .form-control:focus {
+    outline: none;
+    border-color: #d97706;
+    box-shadow: 0 0 0 3px rgba(217,119,6,0.15);
+  }
+  .privacy-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.8rem;
+    color: #166534;
+    margin-bottom: 14px;
+  }
+  .btn-primary {
+    background: #d97706;
+    color: #ffffff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn-primary:hover {
+    background: #b45309;
+  }
+  .btn-secondary {
+    white-space: nowrap;
+    flex-shrink: 0;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-secondary:hover {
+    background: #e2e8f0;
+  }
+  .btn-success {
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-danger {
+    background: #dc2626;
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* Data Table */
+  .table-wrapper {
+    overflow-x: auto;
+  }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  table.data-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+  }
+  table.data-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: middle;
+  }
+  table.data-table tr:hover {
+    background: #f8fafc;
+  }
+
+  /* Charts in Analytics Tab */
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .chart-canvas-wrap {
+    width: 100%;
+    height: 240px;
+    position: relative;
+  }
+
+  /* Toast Notification Popup */
+  #toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 380px;
+  }
+  .toast-card {
+    background: #1e293b;
+    color: #ffffff;
+    border-left: 5px solid #f59e0b;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    font-size: 0.83rem;
+    animation: slide-in 0.25s ease-out;
+  }
+  .toast-card.critical {
+    background: #7f1d1d;
+    border-left-color: #fef08a;
+  }
+  @keyframes slide-in {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* Modal for Digest Preview */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 16px;
+  }
+  .modal-backdrop.open {
+    display: flex;
+  }
+  .modal-content {
+    background: #fff;
+    border-radius: 12px;
+    max-width: 560px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .modal-header {
+    background: #1e293b;
+    color: #fff;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+  }
+  .modal-body {
+    padding: 18px;
+    max-height: 75vh;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- 緊急アラートバナー -->
+<div id="emergency-banner">
+  <div class="emergency-banner-left">
+    <span class="pulse-dot"></span>
+    <span id="emergency-banner-text">【緊急警戒】本日 06:15 天童市山元・舞鶴山北麓（第一小学校通学路から420m）にて成獣1頭の目撃情報（警察・市役所確認済）</span>
+  </div>
+  <div class="banner-actions">
+    <button class="btn-banner" onclick="focusSighting('B-2026-001')">地図で確認</button>
+    <button class="btn-banner" onclick="document.getElementById('emergency-banner').classList.add('hidden')">閉じる</button>
+  </div>
+</div>
+
+<!-- ヘッダー -->
+<header>
+  <div class="brand-area">
+    <div class="brand-icon" aria-hidden="true">🐻</div>
+    <div class="brand-title">
+      <h1>BearWatch GIS <span class="badge-offline" id="cache-status-badge">オフラインキャッシュ稼働中</span></h1>
+      <div class="brand-subtitle">クマ出没情報管理・ジオフェンス警戒・地域安全プラットフォーム（山形県天童市モデル）</div>
+    </div>
+  </div>
+  <div class="header-controls">
+    <div class="role-selector" role="group" aria-label="表示モード切替">
+      <button class="role-btn active" onclick="setRole('resident', this)">一般住民・保護者</button>
+      <button class="role-btn" onclick="setRole('school', this)">学校・見守り隊</button>
+      <button class="role-btn" onclick="setRole('admin', this)">自治体・警察・猟友会</button>
+    </div>
+    <button class="sound-toggle-btn active" id="sound-btn" onclick="toggleSound()">
+      <span id="sound-icon">🔔</span> <span id="sound-label">緊急アラート音: ON</span>
+    </button>
+  </div>
+</header>
+
+<!-- ナビゲーションバー -->
+<div class="nav-bar">
+  <div class="nav-tabs" role="tablist">
+    <button class="nav-tab active" onclick="switchTab('map', this)">
+      🗺️ リアルタイム出没マップ <span class="tab-badge danger" id="badge-24h">3件(24h)</span>
+    </button>
+    <button class="nav-tab" onclick="switchTab('alerts', this)">
+      📡 アラート・通知設定 <span class="tab-badge" id="badge-geofence">3地点監視中</span>
+    </button>
+    <button class="nav-tab" onclick="switchTab('report', this)">
+      📝 出没・痕跡の投稿 / 管理 <span class="tab-badge" id="badge-unverified">未確認 2</span>
+    </button>
+    <button class="nav-tab" onclick="switchTab('analytics', this)">
+      📊 データ蓄積・分析・連携 <span class="tab-badge" id="badge-total">全14件</span>
+    </button>
+  </div>
+  <button class="quick-report-btn" onclick="openQuickReport()">
+    🚨 クマ目撃・痕跡を今すぐ通報
+  </button>
+</div>
+
+<main>
+  <!-- KPI ストリップ -->
+  <div class="kpi-strip">
+    <div class="kpi-card alert-high">
+      <div>
+        <div class="kpi-label">直近24時間以内の出没</div>
+        <div class="kpi-val" id="kpi-24h">3 件</div>
+        <div class="kpi-sub">うち市街地・通学路近接: <strong id="kpi-urgent">2件</strong></div>
+      </div>
+      <div class="kpi-icon">🚨</div>
+    </div>
+    <div class="kpi-card alert-mid">
+      <div>
+        <div class="kpi-label">直近7日間の累計報告</div>
+        <div class="kpi-val" id="kpi-7d">8 件</div>
+        <div class="kpi-sub">行政・警察確認済: <strong id="kpi-verified">11 / 14件</strong></div>
+      </div>
+      <div class="kpi-icon">🐾</div>
+    </div>
+    <div class="kpi-card alert-info">
+      <div>
+        <div class="kpi-label">登録地点ジオフェンス監視</div>
+        <div class="kpi-val" id="kpi-fence-status">半径 1.5 km</div>
+        <div class="kpi-sub">圏内アラート対象: <strong id="kpi-fence-hits">2件該当</strong></div>
+      </div>
+      <div class="kpi-icon">📍</div>
+    </div>
+    <div class="kpi-card alert-safe">
+      <div>
+        <div class="kpi-label">本日の通学路・地域警戒レベル</div>
+        <div class="kpi-val" id="kpi-school-status" style="color:#dc2626;">厳重警戒</div>
+        <div class="kpi-sub">推定移動方向: <strong>北東→南西（河川沿い）</strong></div>
+      </div>
+      <div class="kpi-icon">🏫</div>
+    </div>
+  </div>
+
+  <!-- ==================== TAB 1: マップ機能（可視化） ==================== -->
+  <section id="tab-map" class="tab-panel active">
+    <div class="map-workspace">
+      <!-- 左パネル：フィルタ＆レイヤー制御 -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <span>🔍 表示フィルタ・GISレイヤー</span>
+          <button class="btn-secondary" style="padding:3px 8px;font-size:0.72rem;" onclick="resetMapFilters()">リセット</button>
+        </div>
+        <div class="panel-body">
+          <!-- 時間別フィルタ -->
+          <div class="control-section">
+            <div class="control-title">
+              <span>① 発生時期フィルタ（時間別色分け）</span>
+            </div>
+            <div class="chip-group" id="time-filter-group">
+              <button class="filter-chip active" data-time="all" onclick="setTimeFilter('all', this)">すべて表示</button>
+              <button class="filter-chip" data-time="24h" onclick="setTimeFilter('24h', this)"><span class="dot-24h"></span>24時間以内</button>
+              <button class="filter-chip" data-time="3d" onclick="setTimeFilter('3d', this)"><span class="dot-3d"></span>3日以内</button>
+              <button class="filter-chip" data-time="7d" onclick="setTimeFilter('7d', this)"><span class="dot-7d"></span>1週間以内</button>
+              <button class="filter-chip" data-time="past" onclick="setTimeFilter('past', this)"><span class="dot-past"></span>過去ログ</button>
+            </div>
+          </div>
+
+          <!-- 種別フィルタ -->
+          <div class="control-section">
+            <div class="control-title">
+              <span>② 出没ピン分類（アイコン識別）</span>
+            </div>
+            <div class="chip-group" id="category-filter-group">
+              <button class="filter-chip active" data-cat="all" onclick="setCatFilter('all', this)">全種別</button>
+              <button class="filter-chip" data-cat="sighting_adult" onclick="setCatFilter('sighting_adult', this)">🐻 目撃(成獣)</button>
+              <button class="filter-chip" data-cat="sighting_cub" onclick="setCatFilter('sighting_cub', this)">🧸 目撃(親子/子熊)</button>
+              <button class="filter-chip" data-cat="trace" onclick="setCatFilter('trace', this)">🐾 痕跡(足跡/フン/食害)</button>
+              <button class="filter-chip" data-cat="damage" onclick="setCatFilter('damage', this)">⚠️ 人身・物損被害</button>
+            </div>
+          </div>
+
+          <!-- 確認ステータスフィルタ -->
+          <div class="control-section">
+            <div class="control-title">
+              <span>③ 信頼性・モデレーション絞り込み</span>
+            </div>
+            <select class="form-control" id="status-filter-select" onchange="renderMapAndFeed()">
+              <option value="active">有効な情報すべて（確認済＋未確認）</option>
+              <option value="verified">行政・警察確認済みのみ表示</option>
+              <option value="unverified">未確認（住民投稿）のみ表示</option>
+              <option value="all_with_dismissed">誤認・対応完了アーカイブも含む</option>
+            </select>
+          </div>
+
+          <!-- 空間レイヤー重畳トグル -->
+          <div class="control-section">
+            <div class="control-title">
+              <span>④ 危険ゾーン・地形・通学路オーバーレイ</span>
+            </div>
+            <div class="layer-toggle-list">
+              <div class="layer-toggle-item">
+                <label class="layer-toggle-label" for="toggle-heatmap">🔥 頻出エリア・ヒートマップ</label>
+                <label class="switch"><input type="checkbox" id="toggle-heatmap" checked onchange="renderMap()"><span class="slider"></span></label>
+              </div>
+              <div class="layer-toggle-item">
+                <label class="layer-toggle-label" for="toggle-corridor">🏞️ 移動ルート地形（河川・山林境界・果樹園）</label>
+                <label class="switch"><input type="checkbox" id="toggle-corridor" checked onchange="renderMap()"><span class="slider"></span></label>
+              </div>
+              <div class="layer-toggle-item">
+                <label class="layer-toggle-label" for="toggle-school">🎒 通学路・学校区・指定避難所</label>
+                <label class="switch"><input type="checkbox" id="toggle-school" checked onchange="renderMap()"><span class="slider"></span></label>
+              </div>
+              <div class="layer-toggle-item">
+                <label class="layer-toggle-label" for="toggle-geofence">📡 登録地点ジオフェンス半径円</label>
+                <label class="switch"><input type="checkbox" id="toggle-geofence" checked onchange="renderMap()"><span class="slider"></span></label>
+              </div>
+              <div class="layer-toggle-item">
+                <label class="layer-toggle-label" for="toggle-vectors">🧭 時系列移動方向の推測ベクトル</label>
+                <label class="switch"><input type="checkbox" id="toggle-vectors" onchange="renderMap()"><span class="slider"></span></label>
+              </div>
+              <div class="layer-toggle-item">
+                <label class="layer-toggle-label" for="toggle-traps">🪤 箱わな設置・パトロール強化地点</label>
+                <label class="switch"><input type="checkbox" id="toggle-traps" onchange="renderMap()"><span class="slider"></span></label>
+              </div>
+            </div>
+          </div>
+
+          <!-- ジオフェンス半径クイック調整 -->
+          <div class="control-section">
+            <div class="control-title">
+              <span>📏 ジオフェンス警戒半径</span>
+              <strong id="quick-radius-val" style="color:#d97706;">1.5 km</strong>
+            </div>
+            <input type="range" min="0.5" max="4.0" step="0.5" value="1.5" id="quick-radius-slider" style="width:100%;" oninput="updateGeofenceRadius(this.value)">
+            <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#64748b;margin-top:2px;">
+              <span>0.5km (近隣のみ)</span>
+              <span>2.0km (学区圏)</span>
+              <span>4.0km (広域)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 中央パネル：インタラクティブGISマップ -->
+      <div class="map-center-card">
+        <div class="map-toolbar">
+          <div class="map-toolbar-left">
+            <span class="map-mode-badge" id="map-role-indicator">👁️ 一般住民・保護者ビュー（プライバシー保護座標適用）</span>
+            <button class="map-btn" id="btn-pick-coord" onclick="toggleCoordPickMode()">📍 地図クリックで投稿地点を指定</button>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="map-btn" onclick="resetMapView()">🎯 全体表示</button>
+            <button class="map-btn" onclick="triggerDigestModal('morning')">🌅 朝ダイジェスト確認</button>
+          </div>
+        </div>
+
+        <div class="map-viewport" id="map-viewport">
+          <svg id="gis-svg" viewBox="0 0 900 620" preserveAspectRatio="xMidYMid slice"></svg>
+
+          <!-- ズーム操作 -->
+          <div class="map-zoom-controls">
+            <button class="zoom-btn" title="拡大" onclick="zoomMap(1.25)">＋</button>
+            <button class="zoom-btn" title="縮小" onclick="zoomMap(0.8)">－</button>
+            <button class="zoom-btn" title="初期位置へ戻す" onclick="resetMapView()" style="font-size:0.8rem;">⌂</button>
+          </div>
+
+          <!-- 凡例オーバーレイ -->
+          <div class="map-floating-legend">
+            <div class="legend-title">
+              <span>地図凡例（時間別・分類・地形）</span>
+            </div>
+            <div class="legend-grid">
+              <div class="legend-item"><span class="dot-24h"></span> 24時間以内(赤枠)</div>
+              <div class="legend-item"><span class="dot-3d"></span> 3日以内(橙枠)</div>
+              <div class="legend-item"><span class="dot-7d"></span> 1週間以内(黄枠)</div>
+              <div class="legend-item"><span class="dot-past"></span> 過去データ(灰枠)</div>
+              <div class="legend-item">🐻 目撃(成獣/親子)</div>
+              <div class="legend-item">🐾 痕跡(足跡/食害)</div>
+              <div class="legend-item">⚠️ 人身・物損被害</div>
+              <div class="legend-item"><span style="color:#7c3aed;font-weight:800;">━━</span> 通学路オーバーレイ</div>
+              <div class="legend-item"><span style="color:#0284c7;font-weight:800;">〰️</span> 河川回廊(移動経路)</div>
+              <div class="legend-item"><span style="color:#15803d;font-weight:800;">▒▒</span> 山林境界・果樹園帯</div>
+            </div>
+          </div>
+
+          <!-- 座標表示バー -->
+          <div class="map-coord-bar" id="map-coord-bar">北緯 38.3615° 東経 140.3782° | 縮尺 1:25,000 (オフラインベクターGIS)</div>
+        </div>
+
+        <!-- 通学路・安全ステータスバー -->
+        <div class="school-safety-strip">
+          <div style="font-weight:700;color:#334155;">🎒 通学路・経路別の即時安全判定:</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="school-route-pills">
+            <!-- JSで動的描画 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 右パネル：選択ピンの詳細＆直近出没タイムライン -->
+      <div class="panel-card map-right-panel">
+        <div class="panel-header">
+          <span>📋 選択地点の詳細・モデレーション</span>
+          <span id="selected-id-label" style="font-size:0.75rem;color:#64748b;font-family:monospace;">B-2026-001</span>
+        </div>
+        <div class="panel-body">
+          <div id="sighting-detail-container">
+            <!-- JSで選択中の出没詳細を描画 -->
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 8px;">
+            <span style="font-size:0.82rem;font-weight:700;color:#334155;">🕒 フィルタ該当の出没一覧 (<span id="feed-count">0</span>件)</span>
+            <span style="font-size:0.72rem;color:#64748b;">クリックで地図フォーカス</span>
+          </div>
+          <div class="feed-list" id="sighting-feed-list">
+            <!-- JSで一覧描画 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 2: アラート・通知設定（即時共有） ==================== -->
+  <section id="tab-alerts" class="tab-panel">
+    <div class="two-col-grid">
+      <!-- ジオフェンシング＆登録地点設定 -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <span>📍 ジオフェンシング（位置連動）アラート設定</span>
+          <span class="status-badge status-verified">リアルタイム監視中</span>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:0.82rem;color:#475569;margin-bottom:12px;">
+            現在地または事前登録した地点（自宅・学校・農地など）から指定半径 X km 以内に新たな出没情報が登録された際、即座にプッシュ通知・警告音を配信します。
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">監視半径 X km の設定: <strong id="alert-tab-radius-label" style="color:#d97706;">1.5 km</strong></label>
+            <input type="range" min="0.5" max="4.0" step="0.5" value="1.5" id="alert-tab-radius-slider" style="width:100%;" oninput="updateGeofenceRadius(this.value)">
+          </div>
+
+          <div class="control-title" style="margin-top:14px;">登録済み監視スポット（自宅・学校・農地）</div>
+          <div id="registered-points-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+            <!-- JSで描画 -->
+          </div>
+
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+            <div style="font-size:0.8rem;font-weight:700;margin-bottom:8px;">＋ 新しい監視地点を追加</div>
+            <div class="form-row">
+              <input type="text" id="new-point-name" class="form-control" placeholder="例: 祖父母宅・果樹園北畑">
+              <select id="new-point-area" class="form-control">
+                <option value="38.3618,140.3795">天童市山元（舞鶴山北側）</option>
+                <option value="38.3725,140.3910">天童市山口（乱川扇状地・果樹園帯）</option>
+                <option value="38.3530,140.3710">天童市東本町（市街地中心部）</option>
+                <option value="38.3440,140.3880">天童市貫津（立石寺・山林境界付近）</option>
+              </select>
+            </div>
+            <button class="btn-secondary" style="margin-top:8px;width:100%;justify-content:center;" onclick="addRegisteredPoint()">📍 この地点をジオフェンス監視に追加</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 時間帯別ダイジェスト＆緊急度別通知・オオカミ少年化防止フィルタ -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <span>🔔 時間帯別ダイジェスト・緊急度別優先制御（通知過多防止）</span>
+        </div>
+        <div class="panel-body">
+          <div class="control-section">
+            <div class="control-title">① 時間帯別ダイジェスト自動配信スケジュール</div>
+            <div class="layer-toggle-list">
+              <div class="layer-toggle-item">
+                <label class="layer-toggle-label">🌅 登校前モーニングサマリー（06:30 配信）<br><small style="color:#64748b;font-weight:400;">前夜〜早朝の目撃情報と通学路の危険判定を集約</small></label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button class="btn-secondary" style="padding:4px 8px;font-size:0.74rem;" onclick="triggerDigestModal('morning')">プレビュー</button>
+                  <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                </div>
+              </div>
+              <div class="layer-toggle-item">
+                <label class="layer-toggle-label">🌇 下校前アフタヌーンサマリー（15:00 配信）<br><small style="color:#64748b;font-weight:400;">日中の新規目撃・痕跡情報と下校時の見守り推奨ルート</small></label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button class="btn-secondary" style="padding:4px 8px;font-size:0.74rem;" onclick="triggerDigestModal('afternoon')">プレビュー</button>
+                  <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <div class="control-title">② 緊急度別通知＆通知過多（オオカミ少年化）防止フィルタ</div>
+            <div class="form-group">
+              <label class="form-label">即時プッシュ通知を受け取る最小重要度</label>
+              <select class="form-control" id="notif-threshold-select" onchange="showToast('通知フィルタ設定を更新しました。')">
+                <option value="all">すべての出没・痕跡情報（半径内すべて）</option>
+                <option value="sighting_only" selected>目撃情報・被害発生のみ（足跡等の痕跡のみはダイジェストに集約）</option>
+                <option value="verified_or_critical">「行政・警察確認済み」または「市街地侵入・人身被害」のみ即時通知</option>
+              </select>
+            </div>
+            <div class="layer-toggle-item" style="margin-bottom:10px;">
+              <label class="layer-toggle-label">🚨 緊急度「最高（市街地侵入・人身被害）」時はサイレント中も警報音を鳴らす</label>
+              <label class="switch"><input type="checkbox" id="critical-override-sound" checked><span class="slider"></span></label>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+              <button class="btn-primary" style="background:#dc2626;" onclick="simulateEmergencyAlert('critical')">🚨 緊急アラート発報テスト（市街地侵入・警報音付）</button>
+              <button class="btn-secondary" onclick="simulateEmergencyAlert('normal')">📲 通常ジオフェンス通知テスト</button>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <div class="control-title">③ 直近の通知配信ログ</div>
+            <div id="notification-history-log" style="font-size:0.78rem;display:flex;flex-direction:column;gap:6px;max-height:150px;overflow-y:auto;">
+              <!-- JSで描画 -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 3: 情報入力・投稿 ＆ モデレーション管理 ==================== -->
+  <section id="tab-report" class="tab-panel">
+    <div class="two-col-grid">
+      <!-- 住民・目撃者からの情報投稿フォーム -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <span>📝 クマ目撃・痕跡情報の投稿フォーム</span>
+          <span class="status-badge status-unverified">初期状態: 未確認（住民投稿）</span>
+        </div>
+        <div class="panel-body">
+          <form id="sighting-report-form" onsubmit="submitSightingReport(event)">
+            <div class="privacy-box">
+              🔒 <strong>プライバシー・心理的安全性保護機能:</strong><br>
+              投稿者名は公開されません。自宅敷地内や個人農地での目撃時は「ピン座標を丸める」をONにすると、公開マップ上で約150m四方の代表地点へ自動オフセット表示されます。
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">目撃・確認日時 *</label>
+                <input type="datetime-local" id="form-datetime" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">出没・痕跡の分類 *</label>
+                <select id="form-category" class="form-control" required>
+                  <option value="sighting_adult">🐻 目撃（成獣）</option>
+                  <option value="sighting_cub">🧸 目撃（子グマ・親子連れ ※危険度高）</option>
+                  <option value="trace">🐾 痕跡（足跡・フン・爪痕・食害）</option>
+                  <option value="damage">⚠️ 人身・物損被害（建物侵入・農具破損等）</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">発生エリア名・目標物 *</label>
+                <input type="text" id="form-location-name" class="form-control" placeholder="例: 天童市山元 舞鶴山北側遊歩道入口付近" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">位置座標（GPS / マップ指定） *</label>
+                <div style="display:flex;gap:6px;">
+                  <input type="text" id="form-coords" class="form-control" value="38.3612, 140.3815" readonly>
+                  <button type="button" class="btn-secondary" onclick="useSimulatedGPS()" title="現在地GPS取得">📍GPS</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">頭数 / 推定体長</label>
+                <div style="display:flex;gap:6px;">
+                  <select id="form-count" class="form-control">
+                    <option value="1頭">1頭</option>
+                    <option value="2頭（親子）">2頭（親子）</option>
+                    <option value="3頭以上">3頭以上</option>
+                    <option value="不明（痕跡のみ）">不明（痕跡のみ）</option>
+                  </select>
+                  <select id="form-size" class="form-control">
+                    <option value="約100〜120cm（成獣）">約100〜120cm（成獣）</option>
+                    <option value="約130cm以上（大型）">約130cm以上（大型）</option>
+                    <option value="約50〜70cm（子熊）">約50〜70cm（子熊）</option>
+                    <option value="不明">体長不明</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">確認時の行動・移動方向</label>
+                <div style="display:flex;gap:6px;">
+                  <select id="form-behavior" class="form-control">
+                    <option value="道路横断・移動中">道路横断・移動中</option>
+                    <option value="柿・果樹・ドングリ採食中">柿・果樹・ドングリ採食中</option>
+                    <option value="河川敷・茂みに滞留">河川敷・茂みに滞留</option>
+                    <option value="足跡・フン・食害痕のみ">足跡・フン・食害痕のみ</option>
+                    <option value="威嚇・建物接近">威嚇・建物接近</option>
+                  </select>
+                  <select id="form-direction" class="form-control">
+                    <option value="南西（市街地側）">南西（市街地側）へ移動</option>
+                    <option value="北東（奥山側）">北東（奥山側）へ移動</option>
+                    <option value="西（河川下流側）">西（河川下流側）へ移動</option>
+                    <option value="滞留・方向不明">滞留・方向不明</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">天候・周辺環境</label>
+                <select id="form-weather" class="form-control">
+                  <option value="曇り・薄暮">曇り・薄暮</option>
+                  <option value="晴れ">晴れ</option>
+                  <option value="小雨・霧">小雨・霧</option>
+                  <option value="夜間">夜間</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">現場写真・痕跡画像の添付（誤認防止推奨）</label>
+                <select id="form-photo-preset" class="form-control">
+                  <option value="photo_footprint">📷 添付あり: ぬかるみの足跡・爪痕写真（鮮明）</option>
+                  <option value="photo_orchard">📷 添付あり: 果樹園の枝折れ・食害写真</option>
+                  <option value="photo_distant">📷 添付あり: 遠方からの黒影撮影画像</option>
+                  <option value="none">添付なし（目視のみ）</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">詳細コメント・現場状況</label>
+              <textarea id="form-comment" class="form-control" rows="2" placeholder="例: 道路を北から南へ横切り、近くの柿の木の下を通って河川敷の茂みに入りました。"></textarea>
+            </div>
+
+            <div class="layer-toggle-item" style="margin-bottom:14px;">
+              <label class="layer-toggle-label" for="form-privacy- fuzz">🛡️ 自宅敷地内・私有地のため公開マップ上のピン座標を約150m丸める</label>
+              <label class="switch"><input type="checkbox" id="form-privacy-fuzz" checked><span class="slider"></span></label>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width:100%;">🚨 出没・痕跡情報を登録して地域へ共有する</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 自治体・警察・猟友会向け 情報精査（モデレーション）キュー -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <span>🛡️ 情報精査（モデレーション）・現地確認管理</span>
+          <span class="status-badge status-verified">デマ・誤認防止ワークフロー</span>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:0.81rem;color:#475569;margin-bottom:12px;">
+            住民から投稿された「未確認情報」について、添付写真や足跡特徴からカモシカ・大型犬等の誤認を精査し、「行政・警察確認済み」への昇格やパトロール・箱わな設置の記録を行います。
+          </p>
+
+          <div id="moderation-queue-list" style="display:flex;flex-direction:column;gap:10px;max-height:540px;overflow-y:auto;">
+            <!-- JSでモデレーション対象カードを描画 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 4: データ蓄積・オープン連携 ＆ 分析ダッシュボード ==================== -->
+  <section id="tab-analytics" class="tab-panel">
+    <!-- チャート群 -->
+    <div class="analytics-grid">
+      <div class="panel-card">
+        <div class="panel-header">
+          <span>📈 月別・季節別の出没件数推移（2026年度）</span>
+          <span style="font-size:0.74rem;color:#64748b;">秋期（9〜11月）ドングリ凶作に伴う里山出没増</span>
+        </div>
+        <div class="panel-body">
+          <div class="chart-canvas-wrap">
+            <canvas id="chart-monthly"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-header">
+          <span>⏰ 出没時間帯の傾向分析（登下校時間帯との重なり）</span>
+          <span style="font-size:0.74rem;color:#dc2626;font-weight:700;">早朝(05-08時)・夕暮れ(15-18時)に集中</span>
+        </div>
+        <div class="panel-body">
+          <div class="chart-canvas-wrap">
+            <canvas id="chart-hourly"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-header">
+          <span>🧭 移動方向の推測データ・出没回廊分析</span>
+          <span style="font-size:0.74rem;color:#64748b;">時系列ピン群からの推定移動ベクトル</span>
+        </div>
+        <div class="panel-body">
+          <div id="corridor-analysis-summary" style="font-size:0.82rem;display:flex;flex-direction:column;gap:10px;">
+            <div style="background:#fff7ed;border-left:4px solid #ea580c;padding:10px 12px;border-radius:6px;">
+              <strong>① 乱川・押切川河川敷回廊（移動方位: 北東 → 南西）</strong>
+              <p style="color:#475569;margin-top:3px;">奥羽山脈側の山林境界から果樹園帯を経由し、早朝に河川敷のヤブを伝って市街地東縁（第一小・第二中学区）へ移動する連続目撃パターンが検出されています。</p>
+            </div>
+            <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:10px 12px;border-radius:6px;">
+              <strong>② 舞鶴山北麓〜山元・放棄果樹園ルート（滞留リスク：高）</strong>
+              <p style="color:#475569;margin-top:3px;">未収穫の柿・栗を目当てにした同一成獣とみられる夜間〜早朝の反復出没が3日間連続で発生。箱わな設置および通学路見守り強化を推奨。</p>
+            </div>
+            <div style="background:#eff6ff;border-left:4px solid #2563eb;padding:10px 12px;border-radius:6px;">
+              <strong>③ 天候・気温相関インサイト</strong>
+              <p style="color:#475569;margin-top:3px;">全出没の <strong>71%</strong> が「曇り・薄暮・小雨」時に発生。視界不良時の朝夕は遭遇リスクが通常の2.4倍に上昇しています。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- オープンデータ連携（CSV/GeoJSONエクスポート＆インポート）＋蓄積データベース一覧 -->
+    <div class="panel-card">
+      <div class="panel-header" style="flex-wrap:wrap;gap:10px;">
+        <span>🗄️ 蓄積データベース・自治体オープンデータ連携（CSV / GeoJSON）</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-secondary" onclick="importSampleOpenData()">📥 自治体・警察発表CSVサンプルをインポート</button>
+          <label class="btn-secondary" style="cursor:pointer;">
+            📂 CSVファイル読込 <input type="file" accept=".csv" style="display:none;" onchange="handleCSVFileUpload(event)">
+          </label>
+          <button class="btn-primary" onclick="exportCSV()">⬇️ CSV形式で出力</button>
+          <button class="btn-primary" style="background:#2563eb;" onclick="exportGeoJSON()">🌐 GeoJSON形式で出力</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="table-wrapper">
+          <table class="data-table" id="database-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>発生日時</th>
+                <th>分類</th>
+                <th>発生場所・エリア</th>
+                <th>頭数 / 体長</th>
+                <th>行動 / 移動方向</th>
+                <th>天候</th>
+                <th>信頼性ステータス</th>
+                <th>地図</th>
+              </tr>
+            </thead>
+            <tbody id="database-tbody">
+              <!-- JSで描画 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 時間帯別ダイジェスト通知プレビューモーダル -->
+<div class="modal-backdrop" id="digest-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span id="digest-modal-title">🌅 登校前モーニングダイジェスト通知（06:30 配信）</span>
+      <button class="btn-banner" onclick="closeDigestModal()">✕ 閉じる</button>
+    </div>
+    <div class="modal-body" id="digest-modal-body">
+      <!-- JSで動的生成 -->
+    </div>
+  </div>
+</div>
+
+<!-- トースト通知コンテナ -->
+<div id="toast-container"></div>
+
+<script>
+// ============================================================================
+// 1. 基準時刻および初期データセット（山形県天童市周辺のリアルな地理・出没データ）
+// ============================================================================
+const CURRENT_TIME = new Date("2026-10-14T16:20:00+09:00");
+
+// マップ座標変換（北緯 38.335〜38.385, 東経 140.350〜140.420 を SVG 900x620 に投影）
+const MAP_BOUNDS = {
+  latMin: 38.335,
+  latMax: 38.385,
+  lngMin: 140.350,
+  lngMax: 140.420,
+  width: 900,
+  height: 620
+};
+
+function latLngToXY(lat, lng) {
+  const x = ((lng - MAP_BOUNDS.lngMin) / (MAP_BOUNDS.lngMax - MAP_BOUNDS.lngMin)) * MAP_BOUNDS.width;
+  const y = ((MAP_BOUNDS.latMax - lat) / (MAP_BOUNDS.latMax - MAP_BOUNDS.latMin)) * MAP_BOUNDS.height;
+  return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+}
+
+function xyToLatLng(x, y) {
+  const lng = MAP_BOUNDS.lngMin + (x / MAP_BOUNDS.width) * (MAP_BOUNDS.lngMax - MAP_BOUNDS.lngMin);
+  const lat = MAP_BOUNDS.latMax - (y / MAP_BOUNDS.height) * (MAP_BOUNDS.latMax - MAP_BOUNDS.latMin);
+  return {
+    lat: Math.round(lat * 10000) / 10000,
+    lng: Math.round(lng * 10000) / 10000
+  };
+}
+
+// 2点間の距離（km：Haversine近似）
+function calcDistanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+            Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// 初期出没データ（14件：24h以内、3日以内、1週間以内、過去ログを網羅）
+let sightingsData = [
+  {
+    id: "B-2026-001",
+    datetime: "2026-10-14T06:15:00+09:00",
+    category: "sighting_adult",
+    locationName: "天童市山元・舞鶴山北麓（第一小通学路東側）",
+    lat: 38.3592,
+    lng: 140.3812,
+    privacyFuzzed: false,
+    count: "1頭",
+    size: "約120cm（成獣）",
+    behavior: "道路横断・柿採食後移動",
+    direction: "南西（市街地側）",
+    weather: "曇り・薄暮",
+    status: "verified",
+    urgency: "critical",
+    photoType: "photo_distant",
+    comment: "朝6時15分頃、市道を北から南西へ横断。警察・市農林課が現地で新しい足跡と柿の食害痕を確認し、通学路見守りを強化中。",
+    actionTaken: "パトカー巡回・防災無線放送済・第一小集団登校切替"
+  },
+  {
+    id: "B-2026-002",
+    datetime: "2026-10-14T13:40:00+09:00",
+    category: "trace",
+    locationName: "天童市山口・乱川右岸果樹園（ラ・フランス畑）",
+    lat: 38.3718,
+    lng: 140.3935,
+    privacyFuzzed: true,
+    count: "不明（痕跡のみ）",
+    size: "足跡幅 約11cm",
+    behavior: "果樹食害・枝折れ・新しいフン",
+    direction: "西（河川下流側）",
+    weather: "曇り",
+    status: "unverified",
+    urgency: "high",
+    photoType: "photo_orchard",
+    comment: "農作業中にラ・フランスの枝折れと新しいフン・足跡を発見。自宅兼農地のため座標丸めONで投稿。",
+    actionTaken: "市担当者・猟友会が現地確認へ向かい中"
+  },
+  {
+    id: "B-2026-003",
+    datetime: "2026-10-13T21:10:00+09:00",
+    category: "sighting_cub",
+    locationName: "天童市鎌田本町・押切川沿い緑地帯付近",
+    lat: 38.3645,
+    lng: 140.3768,
+    privacyFuzzed: false,
+    count: "2頭（親子連れ）",
+    size: "成獣110cm＋子熊50cm",
+    behavior: "河川敷・茂みに滞留",
+    direction: "西（河川下流側）",
+    weather: "夜間",
+    status: "verified",
+    urgency: "critical",
+    photoType: "photo_footprint",
+    comment: "温泉街東側の押切川河川敷付近で親子連れのクマを車載ドラレコが記録。子グマ連れのため極めて危険。",
+    actionTaken: "警察・猟友会合同パトロール実施、河川敷遊歩道を立入規制"
+  },
+  {
+    id: "B-2026-004",
+    datetime: "2026-10-12T17:20:00+09:00",
+    category: "damage",
+    locationName: "天童市貫津・山林境界の農機具小屋",
+    lat: 38.3465,
+    lng: 140.3960,
+    privacyFuzzed: true,
+    count: "1頭",
+    size: "約130cm以上（大型）",
+    behavior: "物損被害（作業小屋の扉破損・米ぬか荒らし）",
+    direction: "北東（奥山側）",
+    weather: "曇り・薄暮",
+    status: "verified",
+    urgency: "high",
+    photoType: "photo_footprint",
+    comment: "農機具小屋の木製引き戸が爪で壊され、保管していた米ぬか袋が荒らされていた。人的被害なし。",
+    actionTaken: "猟友会により近隣山林境界に箱わな1基を設置完了"
+  },
+  {
+    id: "B-2026-005",
+    datetime: "2026-10-12T05:50:00+09:00",
+    category: "sighting_adult",
+    locationName: "天童市荒谷・立谷川河川敷北側",
+    lat: 38.3412,
+    lng: 140.3820,
+    privacyFuzzed: false,
+    count: "1頭",
+    size: "約100cm（成獣）",
+    behavior: "道路横断・移動中",
+    direction: "北東（奥山側）",
+    weather: "小雨・霧",
+    status: "verified",
+    urgency: "medium",
+    photoType: "none",
+    comment: "早朝ウォーキング中の住民が橋の上から河川敷を移動するクマを目撃。",
+    actionTaken: "近隣小学校へ注意喚起メール配信"
+  },
+  {
+    id: "B-2026-006",
+    datetime: "2026-10-10T16:45:00+09:00",
+    category: "sighting_adult",
+    locationName: "天童市山元・若松寺参道入口付近",
+    lat: 38.3672,
+    lng: 140.4025,
+    privacyFuzzed: false,
+    count: "1頭",
+    size: "約110cm（成獣）",
+    behavior: "柿・果樹・ドングリ採食中",
+    direction: "南西（市街地側）",
+    weather: "曇り・薄暮",
+    status: "verified",
+    urgency: "medium",
+    photoType: "photo_distant",
+    comment: "参道脇の放棄された柿の木に登って採食している個体を参拝客が目撃。",
+    actionTaken: "不要果樹（誘引木）の伐採・実落としを実施"
+  },
+  {
+    id: "B-2026-007",
+    datetime: "2026-10-09T07:05:00+09:00",
+    category: "trace",
+    locationName: "天童市田麦野・山林境界林道",
+    lat: 38.3775,
+    lng: 140.4110,
+    privacyFuzzed: false,
+    count: "不明（痕跡のみ）",
+    size: "不明",
+    behavior: "足跡・フン・食害痕のみ",
+    direction: "南西（市街地側）",
+    weather: "晴れ",
+    status: "verified",
+    urgency: "low",
+    photoType: "photo_footprint",
+    comment: "林道パトロール隊がクリのイガ散乱と新しい爪痕を確認。",
+    actionTaken: "林道入口にクマ出没注意看板を増設"
+  },
+  {
+    id: "B-2026-008",
+    datetime: "2026-10-14T15:10:00+09:00",
+    category: "sighting_adult",
+    locationName: "天童市北目・舞鶴山西側住宅地縁辺",
+    lat: 38.3548,
+    lng: 140.3745,
+    privacyFuzzed: true,
+    count: "1頭",
+    size: "約80〜100cm",
+    behavior: "道路横断・移動中",
+    direction: "南西（市街地側）",
+    weather: "曇り",
+    status: "unverified",
+    urgency: "high",
+    photoType: "photo_distant",
+    comment: "下校時間帯直前に舞鶴山西側の斜面から黒い動物が降りてくるのを住民が目撃。カモシカの可能性も含め精査中。",
+    actionTaken: "未確認（警察・市職員が現地急行中）"
+  },
+  {
+    id: "B-2026-009",
+    datetime: "2026-10-03T18:00:00+09:00",
+    category: "sighting_adult",
+    locationName: "天童市川原子・乱川上流橋付近",
+    lat: 38.3802,
+    lng: 140.4010,
+    privacyFuzzed: false,
+    count: "1頭",
+    size: "約120cm",
+    behavior: "河川敷・茂みに滞留",
+    direction: "西（河川下流側）",
+    weather: "曇り・薄暮",
+    status: "verified",
+    urgency: "medium",
+    photoType: "none",
+    comment: "夕暮れ時に乱川上流の河川敷ヤブから移動する個体を確認。",
+    actionTaken: "河川敷のヤブ刈り払い対策要望に登録"
+  },
+  {
+    id: "B-2026-010",
+    datetime: "2026-09-25T06:30:00+09:00",
+    category: "trace",
+    locationName: "天童市山口・果樹園東側防風林",
+    lat: 38.3740,
+    lng: 140.3985,
+    privacyFuzzed: false,
+    count: "不明（痕跡のみ）",
+    size: "不明",
+    behavior: "足跡・フン・食害痕のみ",
+    direction: "西（河川下流側）",
+    weather: "小雨・霧",
+    status: "verified",
+    urgency: "low",
+    photoType: "photo_orchard",
+    comment: "防風林沿いに移動痕跡と食害を確認。",
+    actionTaken: "電気柵の電圧点検を実施"
+  },
+  {
+    id: "B-2026-011",
+    datetime: "2026-09-18T16:10:00+09:00",
+    category: "sighting_adult",
+    locationName: "天童市貫津・山元境界尾根道",
+    lat: 38.3520,
+    lng: 140.3990,
+    privacyFuzzed: false,
+    count: "1頭",
+    size: "約110cm",
+    behavior: "道路横断・移動中",
+    direction: "南西（市街地側）",
+    weather: "晴れ",
+    status: "verified",
+    urgency: "low",
+    photoType: "none",
+    comment: "登山道入口付近で目撃。",
+    actionTaken: "登山口での熊鈴携帯呼びかけ"
+  },
+  {
+    id: "B-2026-012",
+    datetime: "2026-08-22T05:30:00+09:00",
+    category: "trace",
+    locationName: "天童市田麦野・デントコーン畑周辺",
+    lat: 38.3760,
+    lng: 140.4060,
+    privacyFuzzed: false,
+    count: "1頭",
+    size: "不明",
+    behavior: "柿・果樹・ドングリ採食中",
+    direction: "滞留・方向不明",
+    weather: "曇り",
+    status: "verified",
+    urgency: "low",
+    photoType: "photo_orchard",
+    comment: "夏期の農作物食害痕。",
+    actionTaken: "被害防除指導済"
+  },
+  {
+    id: "B-2026-013",
+    datetime: "2026-07-14T17:50:00+09:00",
+    category: "sighting_adult",
+    locationName: "天童市川原子・奥山林道入口",
+    lat: 38.3820,
+    lng: 140.4120,
+    privacyFuzzed: false,
+    count: "1頭",
+    size: "約100cm",
+    behavior: "道路横断・移動中",
+    direction: "北東（奥山側）",
+    weather: "小雨・霧",
+    status: "verified",
+    urgency: "low",
+    photoType: "none",
+    comment: "林業従事者による目撃報告。",
+    actionTaken: "記録保存"
+  },
+  {
+    id: "B-2026-014",
+    datetime: "2026-10-11T14:20:00+09:00",
+    category: "sighting_adult",
+    locationName: "天童市東本町・公園北側（誤認：ニホンカモシカと判明）",
+    lat: 38.3620,
+    lng: 140.3690,
+    privacyFuzzed: false,
+    count: "1頭",
+    size: "約90cm",
+    behavior: "滞留・方向不明",
+    direction: "滞留・方向不明",
+    weather: "晴れ",
+    status: "dismissed",
+    urgency: "low",
+    photoType: "photo_distant",
+    comment: "当初小熊の目撃として投稿されたが、添付写真と市職員の現地確認により特別天然記念物ニホンカモシカと判明。",
+    actionTaken: "誤認情報としてアーカイブ処理（デマ拡散防止済）"
+  }
+];
+
+// 事前登録されたジオフェンス監視地点
+let registeredPoints = [
+  { id: "P1", name: "🏠 自宅（天童市東本町）", lat: 38.3608, lng: 140.3725, type: "home" },
+  { id: "P2", name: "🏫 天童市立第一小学校（通学先）", lat: 38.3578, lng: 140.3765, type: "school" },
+  { id: "P3", name: "🍎 山口地区・家族果樹園", lat: 38.3710, lng: 140.3905, type: "farm" }
+];
+
+// 通学路・避難経路データ
+const schoolRoutes = [
+  {
+    id: "SR-1",
+    name: "第一小・舞鶴山北麓通学路",
+    schoolName: "天童市立第一小学校",
+    points: [
+      [38.3578, 140.3765],
+      [38.3588, 140.3792],
+      [38.3605, 140.3820],
+      [38.3625, 140.3835]
+    ]
+  },
+  {
+    id: "SR-2",
+    name: "山口小・乱川扇状地通学路",
+    schoolName: "天童市立山口小学校",
+    points: [
+      [38.3705, 140.3845],
+      [38.3712, 140.3890],
+      [38.3722, 140.3940],
+      [38.3735, 140.3980]
+    ]
+  },
+  {
+    id: "SR-3",
+    name: "南部小・荒谷立谷川通学路",
+    schoolName: "天童市立南部小学校",
+    points: [
+      [38.3470, 140.3710],
+      [38.3450, 140.3765],
+      [38.3430, 140.3815]
+    ]
+  }
+];
+
+// 箱わな・パトロール拠点データ（自治体・猟友会レイヤー用）
+const trapsAndPatrols = [
+  { id: "T-01", name: "箱わな第1号（貫津山林境界）", lat: 38.3472, lng: 140.3955, kind: "trap" },
+  { id: "T-02", name: "箱わな第2号（山元放棄果樹園脇）", lat: 38.3602, lng: 140.3845, kind: "trap" },
+  { id: "T-03", name: "警察・猟友会重点パトロール拠点（押切川緑地）", lat: 38.3652, lng: 140.3780, kind: "patrol" }
+];
+
+// 通知履歴ログ
+let notificationLogs = [
+  { time: "本日 15:11", level: "high", text: "【未確認投稿アラート】登録地点「自宅」「第一小学校」から半径1.5km以内（天童市北目）で新規の目撃投稿がありました。" },
+  { time: "本日 06:30", level: "digest", text: "【登校前ダイジェスト配信】直近24時間の出没2件。第一小・舞鶴山北麓通学路に厳重警戒を発令しました。" },
+  { time: "本日 06:16", level: "critical", text: "【緊急ジオフェンス警報】第一小学校から420m（天童市山元）にて成獣1頭の目撃（警察確認済）。" }
+];
+
+// 状態変数
+let currentRole = "resident"; // resident | school | admin
+let currentTimeFilter = "all"; // all | 24h | 3d | 7d | past
+let currentCatFilter = "all";
+let selectedSightingId = "B-2026-001";
+let geofenceRadiusKm = 1.5;
+let soundEnabled = true;
+let pickCoordMode = false;
+
+// ズーム・パン状態
+let mapZoom = 1.0;
+let mapPanX = 0;
+let mapPanY = 0;
+let isDraggingMap = false;
+let dragStartX = 0;
+let dragStartY = 0;
+
+// ============================================================================
+// 2. ユーティリティ関数（時間分類・アイコン・色分け）
+// ============================================================================
+function getAgeBracket(isoDateStr) {
+  const dt = new Date(isoDateStr);
+  const diffHours = (CURRENT_TIME - dt) / (1000 * 60 * 60);
+  if (diffHours <= 24) return "24h";
+  if (diffHours <= 72) return "3d";
+  if (diffHours <= 168) return "7d";
+  return "past";
+}
+
+function getAgeLabelAndColor(bracket) {
+  switch (bracket) {
+    case "24h": return { label: "24時間以内", color: "#dc2626", bg: "#fef2f2" };
+    case "3d":  return { label: "3日以内", color: "#ea580c", bg: "#fff7ed" };
+    case "7d":  return { label: "1週間以内", color: "#ca8a04", bg: "#fefce8" };
+    default:    return { label: "過去データ", color: "#64748b", bg: "#f1f5f9" };
+  }
+}
+
+function getCategoryMeta(cat) {
+  switch (cat) {
+    case "sighting_adult": return { icon: "🐻", name: "目撃(成獣)", short: "成獣目撃" };
+    case "sighting_cub":   return { icon: "🧸", name: "目撃(親子/子熊)", short: "親子・子熊" };
+    case "trace":          return { icon: "🐾", name: "痕跡(足跡/フン/食害)", short: "痕跡・食害" };
+    case "damage":         return { icon: "⚠️", name: "人身・物損被害", short: "物損・被害" };
+    default:               return { icon: "🐻", name: "その他", short: "その他" };
+  }
+}
+
+function formatDateTimeJP(isoStr) {
+  // Parse YYYY-MM-DDTHH:mm directly to preserve JST regardless of browser timezone
+  const mMatch = isoStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (mMatch) {
+    return `${parseInt(mMatch[2], 10)}/${parseInt(mMatch[3], 10)} ${mMatch[4]}:${mMatch[5]}`;
+  }
+  const d = new Date(isoStr);
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// プライバシー保護用：一般住民・学校ビューでは privacyFuzzed=true のピンを約150mオフセット表示
+function getDisplayLatLng(item) {
+  if (item.privacyFuzzed && currentRole !== "admin") {
+    return {
+      lat: Math.round((item.lat + 0.0011) * 10000) / 10000,
+      lng: Math.round((item.lng - 0.0012) * 10000) / 10000,
+      isOffsetShown: true
+    };
+  }
+  return { lat: item.lat, lng: item.lng, isOffsetShown: false };
+}
+
+// ============================================================================
+// 3. フィルタリング＆KPI計算
+// ============================================================================
+function getFilteredSightings() {
+  const statusFilter = document.getElementById("status-filter-select").value;
+  return sightingsData.filter(item => {
+    // ステータスフィルタ
+    if (statusFilter === "active" && item.status === "dismissed") return false;
+    if (statusFilter === "verified" && item.status !== "verified") return false;
+    if (statusFilter === "unverified" && item.status !== "unverified") return false;
+
+    // 時間フィルタ
+    const bracket = getAgeBracket(item.datetime);
+    if (currentTimeFilter !== "all") {
+      if (currentTimeFilter === "24h" && bracket !== "24h") return false;
+      if (currentTimeFilter === "3d" && (bracket !== "24h" && bracket !== "3d")) return false;
+      if (currentTimeFilter === "7d" && bracket === "past") return false;
+      if (currentTimeFilter === "past" && bracket !== "past") return false;
+    }
+
+    // 種別フィルタ
+    if (currentCatFilter !== "all" && item.category !== currentCatFilter) return false;
+    return true;
+  }).sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
+}
+
+function updateKPIs() {
+  const activeItems = sightingsData.filter(d => d.status !== "dismissed");
+  const count24h = activeItems.filter(d => getAgeBracket(d.datetime) === "24h").length;
+  const count7d = activeItems.filter(d => getAgeBracket(d.datetime) !== "past").length;
+  const countVerified = activeItems.filter(d => d.status === "verified").length;
+  const countUnverified = activeItems.filter(d => d.status === "unverified").length;
+
+  // ジオフェンス該当数（直近7日以内で登録地点から半径以内）
+  let fenceHits = 0;
+  activeItems.forEach(item => {
+    if (getAgeBracket(item.datetime) === "past") return;
+    const hit = registeredPoints.some(pt => calcDistanceKm(item.lat, item.lng, pt.lat, pt.lng) <= geofenceRadiusKm);
+    if (hit) fenceHits++;
+  });
+
+  document.getElementById("kpi-24h").textContent = `${count24h} 件`;
+  document.getElementById("kpi-7d").textContent = `${count7d} 件`;
+  document.getElementById("kpi-verified").textContent = `${countVerified} / ${activeItems.length}件`;
+  document.getElementById("kpi-fence-status").textContent = `半径 ${geofenceRadiusKm.toFixed(1)} km`;
+  document.getElementById("kpi-fence-hits").textContent = `${fenceHits}件該当`;
+
+  document.getElementById("badge-24h").textContent = `${count24h}件(24h)`;
+  document.getElementById("badge-geofence").textContent = `${registeredPoints.length}地点監視中`;
+  document.getElementById("badge-unverified").textContent = `未確認 ${countUnverified}`;
+  document.getElementById("badge-total").textContent = `全${sightingsData.length}件`;
+}
+
+// ============================================================================
+// 4. カスタムベクターGISマップ描画（SVG）
+// ============================================================================
+function renderMap() {
+  const svg = document.getElementById("gis-svg");
+  const showHeatmap = document.getElementById("toggle-heatmap").checked;
+  const showCorridor = document.getElementById("toggle-corridor").checked;
+  const showSchool = document.getElementById("toggle-school").checked;
+  const showGeofence = document.getElementById("toggle-geofence").checked;
+  const showVectors = document.getElementById("toggle-vectors").checked;
+  const showTraps = document.getElementById("toggle-traps").checked;
+
+  const filtered = getFilteredSightings();
+  const activeAll = sightingsData.filter(d => d.status !== "dismissed");
+
+  // 1kmあたりのSVGピクセル換算（経度幅0.07度 ≒ 約6.1km -> 900px なので 1km ≒ 147px）
+  const pxPerKm = 147.5;
+
+  let html = `
+    <defs>
+      <radialGradient id="heatGradHigh" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#dc2626" stop-opacity="0.48"/>
+        <stop offset="55%" stop-color="#f97316" stop-opacity="0.24"/>
+        <stop offset="100%" stop-color="#facc15" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="heatGradMid" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#ea580c" stop-opacity="0.35"/>
+        <stop offset="65%" stop-color="#facc15" stop-opacity="0.15"/>
+        <stop offset="100%" stop-color="#facc15" stop-opacity="0"/>
+      </radialGradient>
+      <pattern id="orchardPattern" width="16" height="16" patternUnits="userSpaceOnUse">
+        <circle cx="5" cy="5" r="2" fill="#65a30d" fill-opacity="0.35"/>
+        <circle cx="13" cy="12" r="2" fill="#65a30d" fill-opacity="0.35"/>
+      </pattern>
+      <marker id="arrowVector" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626"/>
+      </marker>
+    </defs>
+    <g id="map-PanZoom-Group" transform="translate(${mapPanX}, ${mapPanY}) scale(${mapZoom})">
+  `;
+
+  // --- 背景地形（市街地・農地・奥羽山脈山林・舞鶴山） ---
+  html += `
+    <!-- ベース平野部 -->
+    <rect x="0" y="0" width="900" height="620" fill="#eef4ee"/>
+    <!-- 市街地ゾーン（天童駅・東本町・老野森周辺） -->
+    <polygon points="80,160 390,170 410,490 95,480" fill="#e2e8f0" fill-opacity="0.7" stroke="#cbd5e1" stroke-dasharray="4,4"/>
+    <text x="195" y="305" fill="#94a3b8" font-size="15" font-weight="700" letter-spacing="3">天童市街地エリア</text>
+
+    <!-- 東部奥羽山脈・山林エリア（水晶山・雨呼山・立石寺方面） -->
+    <polygon points="560,0 900,0 900,620 520,620 490,420 540,210" fill="#bbf7d0" fill-opacity="0.55"/>
+    <path d="M 555,0 L 535,210 L 490,420 L 520,620" fill="none" stroke="#15803d" stroke-width="2" stroke-dasharray="6,4"/>
+    <text x="680" y="95" fill="#166534" font-size="14" font-weight="700" opacity="0.75">▲ 奥羽山脈・東部山林地帯（クマ生息域）</text>
+
+    <!-- 舞鶴山（天童公園）独立丘陵 -->
+    <ellipse cx="365" cy="345" rx="75" ry="52" fill="#86efac" fill-opacity="0.55" stroke="#16a34a" stroke-width="1.5"/>
+    <text x="330" y="350" fill="#14532d" font-size="12" font-weight="700">⛰️ 舞鶴山(天童公園)</text>
+
+    <!-- 経緯度グリッド線 -->
+    <g stroke="#cbd5e1" stroke-width="0.6" stroke-dasharray="2,4">
+      <line x1="0" y1="124" x2="900" y2="124"/><line x1="0" y1="248" x2="900" y2="248"/>
+      <line x1="0" y1="372" x2="900" y2="372"/><line x1="0" y1="496" x2="900" y2="496"/>
+      <line x1="180" y1="0" x2="180" y2="620"/><line x1="360" y1="0" x2="360" y2="620"/>
+      <line x1="540" y1="0" x2="540" y2="620"/><line x1="720" y1="0" x2="720" y2="620"/>
+    </g>
+
+    <!-- 幹線道路・JR奥羽本線（山形新幹線） -->
+    <path d="M 230,0 L 245,310 L 210,620" fill="none" stroke="#94a3b8" stroke-width="5" opacity="0.6"/>
+    <path d="M 195,0 L 215,310 L 175,620" fill="none" stroke="#475569" stroke-width="3" stroke-dasharray="10,6" opacity="0.75"/>
+    <text x="252" y="255" fill="#475569" font-size="11" font-weight="700">国道13号 / JR天童駅</text>
+  `;
+
+  // --- 移動ルートになりやすい地形レイヤー（河川回廊・山林境界・果樹園帯） ---
+  if (showCorridor) {
+    html += `
+      <g id="layer-corridors">
+        <!-- 果樹園・里山緩衝帯（山口・山元・貫津） -->
+        <polygon points="430,80 650,70 620,280 420,260" fill="url(#orchardPattern)" stroke="#65a30d" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <rect x="445" y="95" width="175" height="20" rx="4" fill="#ecfccb" opacity="0.9"/>
+        <text x="452" y="109" fill="#3f6212" font-size="11" font-weight="700">🍎 山口・山元 果樹園集中帯(誘引注意)</text>
+
+        <!-- 河川回廊1: 乱川（北側） -->
+        <path d="M 900,65 Q 650,95 450,115 T 0,135" fill="none" stroke="#38bdf8" stroke-width="16" stroke-opacity="0.28"/>
+        <path d="M 900,65 Q 650,95 450,115 T 0,135" fill="none" stroke="#0284c7" stroke-width="3.5"/>
+        <text x="580" y="78" fill="#0369a1" font-size="11" font-weight="700">〰️ 乱川河川敷回廊（クマ移動ルート）</text>
+
+        <!-- 河川回廊2: 押切川（中央） -->
+        <path d="M 880,235 Q 610,250 420,245 T 0,225" fill="none" stroke="#38bdf8" stroke-width="14" stroke-opacity="0.28"/>
+        <path d="M 880,235 Q 610,250 420,245 T 0,225" fill="none" stroke="#0284c7" stroke-width="3"/>
+        <text x="440" y="238" fill="#0369a1" font-size="11" font-weight="700">〰️ 押切川緑地回廊</text>
+
+        <!-- 河川回廊3: 立谷川（南側） -->
+        <path d="M 900,520 Q 620,515 400,535 T 0,555" fill="none" stroke="#38bdf8" stroke-width="14" stroke-opacity="0.28"/>
+        <path d="M 900,520 Q 620,515 400,535 T 0,555" fill="none" stroke="#0284c7" stroke-width="3"/>
+        <text x="490" y="512" fill="#0369a1" font-size="11" font-weight="700">〰️ 立谷川河川敷回廊</text>
+
+        <!-- 山林境界ライン強調 -->
+        <path d="M 555,0 L 535,210 L 490,420 L 520,620" fill="none" stroke="#15803d" stroke-width="5" stroke-opacity="0.35"/>
+      </g>
+    `;
+  }
+
+  // --- ヒートマップレイヤー ---
+  if (showHeatmap) {
+    html += `<g id="layer-heatmap">`;
+    activeAll.forEach(item => {
+      const pos = getDisplayLatLng(item);
+      const { x, y } = latLngToXY(pos.lat, pos.lng);
+      const bracket = getAgeBracket(item.datetime);
+      const radius = bracket === "24h" ? 95 : (bracket === "3d" ? 80 : 65);
+      const grad = (bracket === "24h" || item.urgency === "critical") ? "url(#heatGradHigh)" : "url(#heatGradMid)";
+      html += `<circle cx="${x}" cy="${y}" r="${radius}" fill="${grad}" pointer-events="none"/>`;
+    });
+    html += `</g>`;
+  }
+
+  // --- 登録地点ジオフェンス円レイヤー ---
+  if (showGeofence) {
+    const rPx = geofenceRadiusKm * pxPerKm;
+    html += `<g id="layer-geofence">`;
+    registeredPoints.forEach(pt => {
+      const { x, y } = latLngToXY(pt.lat, pt.lng);
+      html += `
+        <circle cx="${x}" cy="${y}" r="${rPx}" fill="#2563eb" fill-opacity="0.06" stroke="#2563eb" stroke-width="1.8" stroke-dasharray="6,4" pointer-events="none"/>
+        <circle cx="${x}" cy="${y}" r="6" fill="#1d4ed8" stroke="#ffffff" stroke-width="2"/>
+        <rect x="${x + 8}" y="${y - 10}" width="${pt.name.length * 11 + 10}" height="18" rx="4" fill="#1e3a8a" fill-opacity="0.88"/>
+        <text x="${x + 13}" y="${y + 3}" fill="#ffffff" font-size="10.5" font-weight="700">${pt.name}</text>
+      `;
+    });
+    html += `</g>`;
+  }
+
+  // --- 通学路・避難経路オーバーレイ ---
+  if (showSchool) {
+    html += `<g id="layer-school-routes">`;
+    schoolRoutes.forEach(route => {
+      const ptsStr = route.points.map(p => {
+        const c = latLngToXY(p[0], p[1]);
+        return `${c.x},${c.y}`;
+      }).join(" ");
+      const startXY = latLngToXY(route.points[0][0], route.points[0][1]);
+      html += `
+        <polyline points="${ptsStr}" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+        <polyline points="${ptsStr}" fill="none" stroke="#7c3aed" stroke-width="4" stroke-dasharray="8,4" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="${startXY.x - 14}" y="${startXY.y - 14}" width="28" height="28" rx="6" fill="#7c3aed" stroke="#fff" stroke-width="2"/>
+        <text x="${startXY.x}" y="${startXY.y + 5}" text-anchor="middle" font-size="14">🏫</text>
+      `;
+    });
+    html += `</g>`;
+  }
+
+  // --- 時系列移動方向の推測ベクトルレイヤー ---
+  if (showVectors) {
+    html += `
+      <g id="layer-vectors">
+        <!-- 乱川・山口〜押切川への推定移動ベクトル -->
+        <line x1="620" y1="145" x2="450" y2="230" stroke="#dc2626" stroke-width="3" stroke-dasharray="6,4" marker-end="url(#arrowVector)"/>
+        <rect x="495" y="165" width="145" height="18" rx="4" fill="#fef2f2" stroke="#dc2626"/>
+        <text x="502" y="178" fill="#991b1b" font-size="10" font-weight="700">推定移動回廊① (北東→南西)</text>
+
+        <!-- 舞鶴山北麓〜北目への移動ベクトル -->
+        <line x1="415" y1="305" x2="325" y2="355" stroke="#dc2626" stroke-width="3" stroke-dasharray="6,4" marker-end="url(#arrowVector)"/>
+        <rect x="345" y="280" width="135" height="18" rx="4" fill="#fef2f2" stroke="#dc2626"/>
+        <text x="352" y="293" fill="#991b1b" font-size="10" font-weight="700">推定移動回廊② (山元→北目)</text>
+      </g>
+    `;
+  }
+
+  // --- 箱わな・パトロール拠点レイヤー ---
+  if (showTraps) {
+    html += `<g id="layer-traps">`;
+    trapsAndPatrols.forEach(tp => {
+      const { x, y } = latLngToXY(tp.lat, tp.lng);
+      const icon = tp.kind === "trap" ? "🪤" : "🚓";
+      html += `
+        <g transform="translate(${x}, ${y})">
+          <rect x="-14" y="-14" width="28" height="28" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+          <text x="0" y="5" text-anchor="middle" font-size="14">${icon}</text>
+          <text x="18" y="4" fill="#0f172a" font-size="10.5" font-weight="700" stroke="#fff" stroke-width="2.5" paint-order="stroke">${tp.name}</text>
+        </g>
+      `;
+    });
+    html += `</g>`;
+  }
+
+  // --- 出没ピン描画 ---
+  html += `<g id="layer-sighting-pins">`;
+  filtered.forEach(item => {
+    const pos = getDisplayLatLng(item);
+    const { x, y } = latLngToXY(pos.lat, pos.lng);
+    const bracket = getAgeBracket(item.datetime);
+    const ageStyle = getAgeLabelAndColor(bracket);
+    const catMeta = getCategoryMeta(item.category);
+    const isSelected = item.id === selectedSightingId;
+
+    // 24時間以内または選択中はパルスリングを表示
+    if (bracket === "24h" && item.status !== "dismissed") {
+      html += `<circle cx="${x}" cy="${y}" r="24" fill="${ageStyle.color}" fill-opacity="0.22" stroke="${ageStyle.color}" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+    }
+    if (isSelected) {
+      html += `<circle cx="${x}" cy="${y}" r="29" fill="none" stroke="#1e293b" stroke-width="3"/>`;
+    }
+
+    // プライバシー丸め表示インジケーター
+    if (pos.isOffsetShown) {
+      html += `<circle cx="${x}" cy="${y}" r="20" fill="none" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="2,2"/>`;
+    }
+
+    const pinRadius = isSelected ? 18 : 15;
+    const strokeDash = item.status === "unverified" ? `stroke-dasharray="4,2"` : "";
+
+    html += `
+      <g class="map-pin-group" style="cursor:pointer;" onclick="selectSighting('${item.id}', event)">
+        <circle cx="${x}" cy="${y}" r="${pinRadius}" fill="${ageStyle.bg}" stroke="${ageStyle.color}" stroke-width="3.5" ${strokeDash}/>
+        <text x="${x}" y="${y + 5}" text-anchor="middle" font-size="${isSelected ? 16 : 14}">${catMeta.icon}</text>
+        ${item.status === "verified" ? `<circle cx="${x + 11}" cy="${y - 11}" r="6" fill="#16a34a" stroke="#fff" stroke-width="1.5"/><text x="${x + 11}" y="${y - 8}" text-anchor="middle" fill="#fff" font-size="8" font-weight="900">✓</text>` : ""}
+        <text x="${x}" y="${y + pinRadius + 12}" text-anchor="middle" fill="#1e293b" font-size="10" font-weight="700" stroke="#ffffff" stroke-width="3" paint-order="stroke">${formatDateTimeJP(item.datetime)}</text>
+      </g>
+    `;
+  });
+  html += `</g>`;
+
+  html += `</g>`; // close map-PanZoom-Group
+  svg.innerHTML = html;
+
+  renderSchoolRouteSafetyPills();
+}
+
+// 通学路ごとの近接リスク自動計算
+function renderSchoolRouteSafetyPills() {
+  const container = document.getElementById("school-route-pills");
+  const recentActive = sightingsData.filter(d => d.status !== "dismissed" && getAgeBracket(d.datetime) !== "past");
+
+  let html = "";
+  schoolRoutes.forEach(route => {
+    let minDistanceKm = 999;
+    let closestItem = null;
+    route.points.forEach(pt => {
+      recentActive.forEach(item => {
+        const dist = calcDistanceKm(pt[0], pt[1], item.lat, item.lng);
+        if (dist < minDistanceKm) {
+          minDistanceKm = dist;
+          closestItem = item;
+        }
+      });
+    });
+
+    let pillClass = "safe";
+    let statusText = "通常見守り";
+    if (minDistanceKm <= 0.6) {
+      pillClass = "danger";
+      statusText = `要厳重警戒 (最短 ${Math.round(minDistanceKm*1000)}m)`;
+    } else if (minDistanceKm <= 1.2) {
+      pillClass = "warning";
+      statusText = `注意 (最短 ${(minDistanceKm).toFixed(1)}km)`;
+    }
+
+    const targetId = closestItem ? closestItem.id : "B-2026-001";
+    html += `
+      <span class="route-pill ${pillClass}" onclick="focusSighting('${targetId}')" title="クリックで最も近い出没地点を表示">
+        🏫 ${route.name}: ${statusText}
+      </span>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+// ============================================================================
+// 5. 右パネル：選択地点の詳細表示＆フィード一覧＆モデレーション操作
+// ============================================================================
+function renderMapAndFeed() {
+  updateKPIs();
+  renderMap();
+  renderSightingDetail();
+  renderSightingFeed();
+  renderModerationQueue();
+  renderDatabaseTable();
+}
+
+function selectSighting(id, ev) {
+  if (ev) ev.stopPropagation();
+  selectedSightingId = id;
+  renderMap();
+  renderSightingDetail();
+  renderSightingFeed();
+}
+
+function focusSighting(id) {
+  switchTab("map", document.querySelectorAll(".nav-tab")[0]);
+  selectedSightingId = id;
+  renderMapAndFeed();
+}
+
+function renderSightingDetail() {
+  const container = document.getElementById("sighting-detail-container");
+  const item = sightingsData.find(d => d.id === selectedSightingId) || sightingsData[0];
+  if (!item) return;
+
+  document.getElementById("selected-id-label").textContent = item.id;
+  const bracket = getAgeBracket(item.datetime);
+  const ageStyle = getAgeLabelAndColor(bracket);
+  const catMeta = getCategoryMeta(item.category);
+  const pos = getDisplayLatLng(item);
+
+  // 最も近い登録地点との距離を計算
+  let nearestPtName = "";
+  let nearestDist = 999;
+  registeredPoints.forEach(pt => {
+    const d = calcDistanceKm(item.lat, item.lng, pt.lat, pt.lng);
+    if (d < nearestDist) {
+      nearestDist = d;
+      nearestPtName = pt.name;
+    }
+  });
+
+  let statusBadgeHtml = "";
+  if (item.status === "verified") {
+    statusBadgeHtml = `<span class="status-badge status-verified">✓ 行政・警察確認済み</span>`;
+  } else if (item.status === "unverified") {
+    statusBadgeHtml = `<span class="status-badge status-unverified">⏳ 未確認（住民投稿・精査中）</span>`;
+  } else {
+    statusBadgeHtml = `<span class="status-badge status-dismissed">📁 誤認・アーカイブ済</span>`;
+  }
+
+  let modButtonsHtml = "";
+  if (currentRole === "admin" || item.status === "unverified") {
+    modButtonsHtml = `
+      <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;display:flex;gap:6px;flex-wrap:wrap;">
+        ${item.status !== "verified" ? `<button class="btn-success" onclick="updateSightingStatus('${item.id}', 'verified')">✓ 関係機関確認済みに承認</button>` : ""}
+        ${item.status !== "dismissed" ? `<button class="btn-secondary" style="font-size:0.75rem;padding:5px 10px;" onclick="updateSightingStatus('${item.id}', 'dismissed')">誤認(カモシカ等)として却下</button>` : ""}
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="detail-box">
+      <div class="detail-header">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          ${statusBadgeHtml}
+          <span class="urgency-badge" style="background:${ageStyle.color};">${ageStyle.label}</span>
+        </div>
+      </div>
+      <div style="font-size:0.95rem;font-weight:800;color:#0f172a;margin-bottom:4px;">
+        ${catMeta.icon} ${item.locationName}
+      </div>
+      <div style="font-size:0.76rem;color:#475569;margin-bottom:8px;">
+        🕒 発生日時: <strong>${formatDateTimeJP(item.datetime)}</strong> | 📍 ${nearestPtName}から <strong>${nearestDist.toFixed(2)} km</strong>
+        ${pos.isOffsetShown ? `<br><span style="color:#15803d;font-weight:700;">🛡️ プライバシー保護のため座標を約150m丸めて表示中</span>` : ""}
+      </div>
+
+      <div class="detail-meta-grid">
+        <div class="meta-item"><span class="label">分類・頭数</span><span class="val">${catMeta.short} / ${item.count}</span></div>
+        <div class="meta-item"><span class="label">推定体長</span><span class="val">${item.size}</span></div>
+        <div class="meta-item"><span class="label">確認時の行動</span><span class="val">${item.behavior}</span></div>
+        <div class="meta-item"><span class="label">移動方向・天候</span><span class="val">${item.direction} (${item.weather})</span></div>
+      </div>
+
+      <div style="font-size:0.79rem;color:#334155;background:#fff;padding:8px 10px;border-radius:6px;border:1px solid #e2e8f0;margin-bottom:6px;">
+        <strong>現場状況:</strong> ${item.comment}
+      </div>
+      <div style="font-size:0.76rem;color:#1e40af;background:#eff6ff;padding:6px 10px;border-radius:6px;">
+        <strong>対応状況:</strong> ${item.actionTaken}
+      </div>
+      ${modButtonsHtml}
+    </div>
+  `;
+}
+
+function renderSightingFeed() {
+  const listEl = document.getElementById("sighting-feed-list");
+  const filtered = getFilteredSightings();
+  document.getElementById("feed-count").textContent = filtered.length;
+
+  listEl.innerHTML = filtered.map(item => {
+    const bracket = getAgeBracket(item.datetime);
+    const ageStyle = getAgeLabelAndColor(bracket);
+    const catMeta = getCategoryMeta(item.category);
+    const isSel = item.id === selectedSightingId ? "selected" : "";
+    const statusText = item.status === "verified" ? "✓確認済" : (item.status === "unverified" ? "⏳未確認" : "誤認却下");
+    const statusColor = item.status === "verified" ? "#166534" : (item.status === "unverified" ? "#92400e" : "#64748b");
+
+    return `
+      <div class="feed-item ${isSel}" onclick="selectSighting('${item.id}')">
+        <div class="feed-item-top">
+          <span style="font-weight:700;color:${ageStyle.color};">● ${formatDateTimeJP(item.datetime)} (${ageStyle.label})</span>
+          <span style="font-weight:700;color:${statusColor};">${statusText}</span>
+        </div>
+        <div class="feed-item-title">${catMeta.icon} ${item.locationName}</div>
+        <div class="feed-item-sub">
+          <span>${item.count} / ${item.behavior}</span>
+          <span>🧭 ${item.direction}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// ============================================================================
+// 6. アラート・ジオフェンス管理＆緊急通知サウンド合成
+// ============================================================================
+function updateGeofenceRadius(val) {
+  geofenceRadiusKm = parseFloat(val);
+  document.getElementById("quick-radius-val").textContent = `${geofenceRadiusKm.toFixed(1)} km`;
+  document.getElementById("quick-radius-slider").value = geofenceRadiusKm;
+  document.getElementById("alert-tab-radius-label").textContent = `${geofenceRadiusKm.toFixed(1)} km`;
+  document.getElementById("alert-tab-radius-slider").value = geofenceRadiusKm;
+  updateKPIs();
+  renderMap();
+  renderRegisteredPoints();
+}
+
+function renderRegisteredPoints() {
+  const container = document.getElementById("registered-points-list");
+  const activeRecent = sightingsData.filter(d => d.status !== "dismissed" && getAgeBracket(d.datetime) !== "past");
+
+  container.innerHTML = registeredPoints.map(pt => {
+    const nearbyCount = activeRecent.filter(item => calcDistanceKm(item.lat, item.lng, pt.lat, pt.lng) <= geofenceRadiusKm).length;
+    const badgeHtml = nearbyCount > 0
+      ? `<span class="status-badge" style="background:#fee2e2;color:#991b1b;">⚠️ 半径${geofenceRadiusKm}km内に${nearbyCount}件</span>`
+      : `<span class="status-badge status-verified">安全圏内 (0件)</span>`;
+
+    return `
+      <div class="layer-toggle-item" style="padding:10px 12px;">
+        <div>
+          <div style="font-weight:700;font-size:0.85rem;">${pt.name}</div>
+          <div style="font-size:0.73rem;color:#64748b;">座標: ${pt.lat.toFixed(4)}, ${pt.lng.toFixed(4)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${badgeHtml}
+          <button class="btn-secondary" style="padding:4px 8px;font-size:0.72rem;" onclick="removeRegisteredPoint('${pt.id}')">削除</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function addRegisteredPoint() {
+  const nameInput = document.getElementById("new-point-name");
+  const areaSelect = document.getElementById("new-point-area");
+  const name = nameInput.value.trim() || "📍 追加登録スポット";
+  const [latStr, lngStr] = areaSelect.value.split(",");
+  registeredPoints.push({
+    id: "P" + Date.now(),
+    name: "📍 " + name,
+    lat: parseFloat(latStr),
+    lng: parseFloat(lngStr),
+    type: "custom"
+  });
+  nameInput.value = "";
+  renderRegisteredPoints();
+  updateKPIs();
+  renderMap();
+  showToast(`監視地点「${name}」をジオフェンスに登録しました。`);
+}
+
+function removeRegisteredPoint(id) {
+  if (registeredPoints.length <= 1) {
+    showToast("最低1つの監視地点が必要です。");
+    return;
+  }
+  registeredPoints = registeredPoints.filter(p => p.id !== id);
+  renderRegisteredPoints();
+  updateKPIs();
+  renderMap();
+}
+
+// Web Audio API による警報チャイム合成（外部音声ファイル不要で確実に動作）
+function playAlertChime(isCritical) {
+  if (!soundEnabled) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const freqs = isCritical ? [880, 1174.66, 880, 1174.66] : [587.33, 880];
+    freqs.forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = isCritical ? "sawtooth" : "sine";
+      osc.frequency.setValueAtTime(f, ctx.currentTime + idx * 0.16);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.16);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (idx + 1) * 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx * 0.16);
+      osc.stop(ctx.currentTime + (idx + 1) * 0.16);
+    });
+  } catch (e) {
+    // AudioContext blocked or unsupported
+  }
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  const btn = document.getElementById("sound-btn");
+  document.getElementById("sound-icon").textContent = soundEnabled ? "🔔" : "🔕";
+  document.getElementById("sound-label").textContent = soundEnabled ? "緊急アラート音: ON" : "緊急アラート音: OFF";
+  btn.classList.toggle("active", soundEnabled);
+}
+
+function simulateEmergencyAlert(kind) {
+  if (kind === "critical") {
+    playAlertChime(true);
+    const msg = "【緊急ジオフェンス警報】登録地点「第一小学校」から380m（天童市山元）にてクマの市街地侵入が報告されました！不要不急の外出を控えてください。";
+    showToast(msg, true);
+    notificationLogs.unshift({ time: "たった今", level: "critical", text: msg });
+  } else {
+    playAlertChime(false);
+    const msg = `【位置連動通知】登録地点から半径 ${geofenceRadiusKm.toFixed(1)}km 圏内で新しい痕跡情報が登録されました。`;
+    showToast(msg, false);
+    notificationLogs.unshift({ time: "たった今", level: "normal", text: msg });
+  }
+  renderNotificationLogs();
+}
+
+function renderNotificationLogs() {
+  const el = document.getElementById("notification-history-log");
+  if (!el) return;
+  el.innerHTML = notificationLogs.map(log => {
+    const borderCol = log.level === "critical" ? "#dc2626" : (log.level === "digest" ? "#2563eb" : "#d97706");
+    return `
+      <div style="padding:8px 10px;background:#f8fafc;border-left:4px solid ${borderCol};border-radius:4px;">
+        <span style="font-weight:700;color:#475569;">[${log.time}]</span> ${log.text}
+      </div>
+    `;
+  }).join("");
+}
+
+// 時間帯別ダイジェストモーダル表示
+function triggerDigestModal(period) {
+  const modal = document.getElementById("digest-modal");
+  const titleEl = document.getElementById("digest-modal-title");
+  const bodyEl = document.getElementById("digest-modal-body");
+
+  const recent24h = sightingsData.filter(d => d.status !== "dismissed" && getAgeBracket(d.datetime) === "24h");
+
+  if (period === "morning") {
+    titleEl.textContent = "🌅 登校前モーニングダイジェスト通知（朝 06:30 自動配信プレビュー）";
+  } else {
+    titleEl.textContent = "🌇 下校前アフタヌーンダイジェスト通知（15:00 自動配信プレビュー）";
+  }
+
+  bodyEl.innerHTML = `
+    <div style="background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px;margin-bottom:14px;font-size:0.84rem;">
+      <strong>📢 地域の皆様・保護者の皆様へ（自動サマリー）</strong><br>
+      直近24時間以内に天童市内で <strong>${recent24h.length}件</strong> の出没・痕跡報告があります。
+      特に<strong>舞鶴山北麓〜山元エリア</strong>および<strong>押切川緑地沿い</strong>では親子グマ・成獣の目撃が相次いでいるため、登下校時は通学路の単独歩行を避け、見守りルートを通行してください。
+    </div>
+    <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;">📍 直近24時間の重点警戒リスト:</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+      ${recent24h.map(item => `
+        <div style="border:1px solid #e2e8f0;padding:10px;border-radius:6px;font-size:0.8rem;">
+          <div style="font-weight:700;color:#dc2626;">● ${formatDateTimeJP(item.datetime)} - ${item.locationName}</div>
+          <div style="color:#334155;margin-top:2px;">分類: ${getCategoryMeta(item.category).name} (${item.count}) / 行動: ${item.behavior}</div>
+          <div style="color:#1e40af;margin-top:2px;">対策: ${item.actionTaken}</div>
+        </div>
+      `).join("")}
+    </div>
+    <div style="font-size:0.78rem;color:#64748b;display:flex;justify-content:space-between;align-items:center;">
+      <span>配信対象: 天童市登録ユーザー / 第一小・山口小PTA見守りネットワーク</span>
+      <button class="btn-primary" onclick="closeDigestModal()">確認しました</button>
+    </div>
+  `;
+  modal.classList.add("open");
+}
+
+function closeDigestModal() {
+  document.getElementById("digest-modal").classList.remove("open");
+}
+
+// ============================================================================
+// 7. 情報入力・投稿 ＆ モデレーション機能
+// ============================================================================
+function toggleCoordPickMode() {
+  pickCoordMode = !pickCoordMode;
+  const vp = document.getElementById("map-viewport");
+  const btn = document.getElementById("btn-pick-coord");
+  vp.classList.toggle("pick-mode", pickCoordMode);
+  btn.classList.toggle("active", pickCoordMode);
+  if (pickCoordMode) {
+    showToast("地図上の任意の場所をクリックすると、投稿フォームに緯度・経度が自動セットされます。");
+  }
+}
+
+function openQuickReport() {
+  const tabBtn = document.querySelectorAll(".nav-tab")[2];
+  switchTab("report", tabBtn);
+  document.getElementById("form-location-name").focus();
+}
+
+function useSimulatedGPS() {
+  const lat = (38.3585 + (Math.random() - 0.5) * 0.008).toFixed(4);
+  const lng = (140.3790 + (Math.random() - 0.5) * 0.008).toFixed(4);
+  document.getElementById("form-coords").value = `${lat}, ${lng}`;
+  showToast(`現在地GPS座標 (${lat}, ${lng}) を取得しました。`);
+}
+
+function submitSightingReport(ev) {
+  ev.preventDefault();
+  const dtVal = document.getElementById("form-datetime").value || "2026-10-14T16:15";
+  const category = document.getElementById("form-category").value;
+  const locName = document.getElementById("form-location-name").value.trim();
+  const [latStr, lngStr] = document.getElementById("form-coords").value.split(",");
+  const count = document.getElementById("form-count").value;
+  const size = document.getElementById("form-size").value;
+  const behavior = document.getElementById("form-behavior").value;
+  const direction = document.getElementById("form-direction").value;
+  const weather = document.getElementById("form-weather").value;
+  const photoType = document.getElementById("form-photo-preset").value;
+  const comment = document.getElementById("form-comment").value.trim() || "住民からの新規投稿（現地状況の確認中）";
+  const privacyFuzzed = document.getElementById("form-privacy-fuzz").checked;
+
+  const lat = parseFloat(latStr) || 38.3612;
+  const lng = parseFloat(lngStr) || 140.3815;
+  const newId = `B-2026-${String(sightingsData.length + 1).padStart(3, "0")}`;
+
+  const newItem = {
+    id: newId,
+    datetime: dtVal.length === 16 ? dtVal + ":00+09:00" : dtVal,
+    category,
+    locationName: locName,
+    lat,
+    lng,
+    privacyFuzzed,
+    count,
+    size,
+    behavior,
+    direction,
+    weather,
+    status: "unverified",
+    urgency: (category === "sighting_cub" || category === "damage") ? "critical" : "high",
+    photoType,
+    comment,
+    actionTaken: "住民投稿受付（自治体・警察モデレーション待ち）"
+  };
+
+  sightingsData.unshift(newItem);
+  selectedSightingId = newId;
+
+  // 登録地点とのジオフェンス判定
+  const hitPoints = registeredPoints.filter(pt => calcDistanceKm(lat, lng, pt.lat, pt.lng) <= geofenceRadiusKm);
+  if (hitPoints.length > 0) {
+    playAlertChime(newItem.urgency === "critical");
+    const ptNames = hitPoints.map(p => p.name).join("・");
+    const alertMsg = `【ジオフェンス即時通知】新規投稿「${locName}」は登録地点（${ptNames}）の半径${geofenceRadiusKm}km圏内です！`;
+    showToast(alertMsg, newItem.urgency === "critical");
+    notificationLogs.unshift({ time: "たった今", level: "critical", text: alertMsg });
+  } else {
+    showToast(`出没情報（${newId}）を登録しました。マップとモデレーション一覧に反映されました。`);
+  }
+
+  document.getElementById("form-location-name").value = "";
+  document.getElementById("form-comment").value = "";
+  renderMapAndFeed();
+  renderAnalyticsCharts();
+  switchTab("map", document.querySelectorAll(".nav-tab")[0]);
+}
+
+function updateSightingStatus(id, newStatus) {
+  const item = sightingsData.find(d => d.id === id);
+  if (!item) return;
+  item.status = newStatus;
+  if (newStatus === "verified") {
+    item.actionTaken = "行政・警察現地確認済み（防災ネット・学校連絡網へ共有完了）";
+    showToast(`${id} を「行政・警察確認済み」に承認しました。信頼性バッジが付与されます。`);
+  } else if (newStatus === "dismissed") {
+    item.actionTaken = "誤認情報（カモシカ・小動物等）としてアーカイブ処理済";
+    showToast(`${id} を誤認情報としてアーカイブしました（公開マップから除外）。`);
+  }
+  renderMapAndFeed();
+  renderAnalyticsCharts();
+}
+
+function renderModerationQueue() {
+  const container = document.getElementById("moderation-queue-list");
+  if (!container) return;
+
+  const photoLabels = {
+    photo_footprint: "📷 添付画像: 足跡・爪痕写真（5本指・広い掌球を確認可能）",
+    photo_orchard: "📷 添付画像: 果樹園の枝折れ・食害写真",
+    photo_distant: "📷 添付画像: 遠方からの黒影写真（カモシカとの識別要注意）",
+    none: "添付画像なし（目撃証言のみ）"
+  };
+
+  container.innerHTML = sightingsData.slice(0, 8).map(item => {
+    const statusBadge = item.status === "verified"
+      ? `<span class="status-badge status-verified">✓ 行政・警察確認済み</span>`
+      : (item.status === "unverified"
+        ? `<span class="status-badge status-unverified">⏳ 未確認（要精査）</span>`
+        : `<span class="status-badge status-dismissed">📁 誤認・却下済</span>`);
+
+    return `
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;background:${item.status === 'unverified' ? '#fffbeb' : '#ffffff'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <strong style="font-size:0.84rem;">${item.id}: ${item.locationName}</strong>
+          ${statusBadge}
+        </div>
+        <div style="font-size:0.76rem;color:#475569;margin-bottom:6px;">
+          日時: ${formatDateTimeJP(item.datetime)} | 分類: ${getCategoryMeta(item.category).name} | ${photoLabels[item.photoType] || ""}
+        </div>
+        <div style="font-size:0.78rem;color:#1e293b;margin-bottom:8px;">
+          「${item.comment}」
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${item.status !== "verified" ? `<button class="btn-success" onclick="updateSightingStatus('${item.id}', 'verified')">✓ 関係機関確認済みに昇格</button>` : ""}
+          ${item.status !== "dismissed" ? `<button class="btn-secondary" style="font-size:0.74rem;padding:4px 10px;" onclick="updateSightingStatus('${item.id}', 'dismissed')">誤認(カモシカ等)として却下</button>` : ""}
+          <button class="btn-secondary" style="font-size:0.74rem;padding:4px 10px;" onclick="focusSighting('${item.id}')">🗺️ 地図で確認</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// ============================================================================
+// 8. データ蓄積・分析ダッシュボード描画（Canvasチャート ＆ CSV/GeoJSON入出力）
+// ============================================================================
+function renderDatabaseTable() {
+  const tbody = document.getElementById("database-tbody");
+  if (!tbody) return;
+
+  tbody.innerHTML = sightingsData.map(item => {
+    const catMeta = getCategoryMeta(item.category);
+    const statusBadge = item.status === "verified"
+      ? `<span class="status-badge status-verified">確認済</span>`
+      : (item.status === "unverified"
+        ? `<span class="status-badge status-unverified">未確認</span>`
+        : `<span class="status-badge status-dismissed">誤認却下</span>`);
+
+    return `
+      <tr>
+        <td style="font-family:monospace;font-weight:700;">${item.id}</td>
+        <td>${formatDateTimeJP(item.datetime)}</td>
+        <td>${catMeta.icon} ${catMeta.short}</td>
+        <td style="font-weight:600;">${item.locationName}</td>
+        <td>${item.count} / ${item.size}</td>
+        <td>${item.behavior}<br><small style="color:#64748b;">🧭 ${item.direction}</small></td>
+        <td>${item.weather}</td>
+        <td>${statusBadge}</td>
+        <td><button class="btn-secondary" style="padding:4px 8px;font-size:0.74rem;" onclick="focusSighting('${item.id}')">表示</button></td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderAnalyticsCharts() {
+  drawMonthlyChart();
+  drawHourlyChart();
+}
+
+function drawMonthlyChart() {
+  const canvas = document.getElementById("chart-monthly");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const w = rect.width || 460;
+  const h = 230;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+  ctx.scale(dpr, dpr);
+
+  ctx.clearRect(0, 0, w, h);
+
+  const months = ["4月", "5月", "6月", "7月", "8月", "9月", "10月(現在)", "11月(予測)"];
+  const counts = [1, 2, 3, 4, 5, 9, sightingsData.filter(d => d.status !== "dismissed").length, 11];
+  const maxVal = Math.max(...counts, 16);
+
+  const padL = 38, padR = 16, padT = 24, padB = 34;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+
+  // グリッド線
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.fillStyle = "#64748b";
+  ctx.font = "11px sans-serif";
+  for (let i = 0; i <= 4; i++) {
+    const val = Math.round((maxVal / 4) * i);
+    const y = padT + plotH - (val / maxVal) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(w - padR, y);
+    ctx.stroke();
+    ctx.fillText(val + "件", 4, y + 4);
+  }
+
+  const barW = Math.min(34, (plotW / months.length) * 0.58);
+  months.forEach((m, idx) => {
+    const xCenter = padL + (plotW / months.length) * (idx + 0.5);
+    const barH = (counts[idx] / maxVal) * plotH;
+    const x = xCenter - barW / 2;
+    const y = padT + plotH - barH;
+
+    ctx.fillStyle = idx === 6 ? "#dc2626" : (idx === 7 ? "#94a3b8" : "#d97706");
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+    ctx.fill();
+
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(counts[idx], xCenter, y - 6);
+
+    ctx.fillStyle = "#475569";
+    ctx.font = "10.5px sans-serif";
+    ctx.fillText(m, xCenter, h - 10);
+  });
+}
+
+function drawHourlyChart() {
+  const canvas = document.getElementById("chart-hourly");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const w = rect.width || 460;
+  const h = 230;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+  ctx.scale(dpr, dpr);
+
+  ctx.clearRect(0, 0, w, h);
+
+  const slots = ["00-04時", "04-08時(登校)", "08-12時", "12-15時", "15-19時(下校)", "19-24時"];
+  const values = [1, 6, 1, 2, 5, 3];
+  const maxVal = 8;
+
+  const padL = 38, padR = 16, padT = 24, padB = 34;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.fillStyle = "#64748b";
+  ctx.font = "11px sans-serif";
+  for (let i = 0; i <= 4; i++) {
+    const val = i * 2;
+    const y = padT + plotH - (val / maxVal) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(w - padR, y);
+    ctx.stroke();
+    ctx.fillText(val + "件", 4, y + 4);
+  }
+
+  const barW = Math.min(42, (plotW / slots.length) * 0.58);
+  slots.forEach((s, idx) => {
+    const xCenter = padL + (plotW / slots.length) * (idx + 0.5);
+    const barH = (values[idx] / maxVal) * plotH;
+    const x = xCenter - barW / 2;
+    const y = padT + plotH - barH;
+
+    // 登下校時間帯を赤系で強調
+    ctx.fillStyle = (idx === 1 || idx === 4) ? "#dc2626" : "#2563eb";
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+    ctx.fill();
+
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(values[idx] + "件", xCenter, y - 6);
+
+    ctx.fillStyle = "#475569";
+    ctx.font = "10px sans-serif";
+    ctx.fillText(s, xCenter, h - 10);
+  });
+}
+
+// CSV / GeoJSON 出力およびサンプルCSVインポート
+function exportCSV() {
+  const headers = ["ID", "発生日時", "分類", "発生場所", "緯度", "経度", "頭数", "推定体長", "行動", "移動方向", "天候", "ステータス", "コメント"];
+  const rows = sightingsData.map(d => [
+    d.id,
+    d.datetime,
+    getCategoryMeta(d.category).name,
+    `"${d.locationName.replace(/"/g, '""')}"`,
+    d.lat,
+    d.lng,
+    `"${d.count}"`,
+    `"${d.size}"`,
+    `"${d.behavior}"`,
+    `"${d.direction}"`,
+    `"${d.weather}"`,
+    d.status,
+    `"${d.comment.replace(/"/g, '""')}"`
+  ]);
+  const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bear_sightings_tendo_20261014.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("出没データベースを CSV 形式で出力しました。");
+}
+
+function exportGeoJSON() {
+  const geojson = {
+    type: "FeatureCollection",
+    generatedAt: CURRENT_TIME.toISOString(),
+    features: sightingsData.filter(d => d.status !== "dismissed").map(d => ({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [d.lng, d.lat]
+      },
+      properties: {
+        id: d.id,
+        datetime: d.datetime,
+        category: d.category,
+        locationName: d.locationName,
+        count: d.count,
+        size: d.size,
+        behavior: d.behavior,
+        direction: d.direction,
+        weather: d.weather,
+        status: d.status,
+        urgency: d.urgency,
+        comment: d.comment
+      }
+    }))
+  };
+  const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/geo+json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bear_sightings_tendo_20261014.geojson`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("空間データ（GeoJSON形式）を出力しました。GISソフトへそのまま読み込めます。");
+}
+
+function importSampleOpenData() {
+  const newId = `B-2026-${String(sightingsData.length + 1).padStart(3, "0")}`;
+  sightingsData.unshift({
+    id: newId,
+    datetime: "2026-10-14T15:45:00+09:00",
+    category: "sighting_adult",
+    locationName: "【県警防犯メール連携】天童市道満・乱川南岸農道",
+    lat: 38.3688,
+    lng: 140.3860,
+    privacyFuzzed: false,
+    count: "1頭",
+    size: "約110cm（成獣）",
+    behavior: "道路横断・移動中",
+    direction: "西（河川下流側）",
+    weather: "曇り",
+    status: "verified",
+    urgency: "high",
+    photoType: "none",
+    comment: "山形県警「やまがた110ネットワーク」配信データからの自動CSV/APIインポート案件。",
+    actionTaken: "オープンデータ連携により自動取込・確認済ステータス付与"
+  });
+  selectedSightingId = newId;
+  renderMapAndFeed();
+  renderAnalyticsCharts();
+  showToast(`自治体・警察発表データ（${newId}）をインポートし、マップを更新しました。`);
+}
+
+function handleCSVFileUpload(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const lines = e.target.result.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length > 1) {
+      importSampleOpenData();
+      showToast(`CSVファイル「${file.name}」(${lines.length - 1}行) を取り込みました。`);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ============================================================================
+// 9. UI操作・タブ切替・ロール切替・マップドラッグ＆ズーム
+// ============================================================================
+function switchTab(tabKey, btnEl) {
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(b => b.classList.remove("active"));
+  document.getElementById(`tab-${tabKey}`).classList.add("active");
+  if (btnEl) btnEl.classList.add("active");
+  if (tabKey === "analytics") {
+    setTimeout(renderAnalyticsCharts, 60);
+  }
+}
+
+function setRole(role, btnEl) {
+  currentRole = role;
+  document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
+  if (btnEl) btnEl.classList.add("active");
+
+  const indicator = document.getElementById("map-role-indicator");
+  const trapsCheckbox = document.getElementById("toggle-traps");
+  const vectorsCheckbox = document.getElementById("toggle-vectors");
+
+  if (role === "resident") {
+    indicator.textContent = "👁️ 一般住民・保護者ビュー（プライバシー保護座標適用）";
+    indicator.style.background = "#fef3c7";
+    indicator.style.color = "#92400e";
+    trapsCheckbox.checked = false;
+  } else if (role === "school") {
+    indicator.textContent = "🏫 学校・教育関係者ビュー（通学路安全判定・登下校ダイジェスト強調）";
+    indicator.style.background = "#f3e8ff";
+    indicator.style.color = "#6b21a8";
+    document.getElementById("toggle-school").checked = true;
+    vectorsCheckbox.checked = true;
+  } else if (role === "admin") {
+    indicator.textContent = "🛡️ 自治体・警察・猟友会ビュー（実座標表示・箱わな管理・モデレーション権限）";
+    indicator.style.background = "#dbeafe";
+    indicator.style.color = "#1e40af";
+    trapsCheckbox.checked = true;
+    vectorsCheckbox.checked = true;
+  }
+  renderMapAndFeed();
+}
+
+function setTimeFilter(timeKey, btnEl) {
+  currentTimeFilter = timeKey;
+  document.querySelectorAll("#time-filter-group .filter-chip").forEach(b => b.classList.remove("active"));
+  if (btnEl) btnEl.classList.add("active");
+  renderMapAndFeed();
+}
+
+function setCatFilter(catKey, btnEl) {
+  currentCatFilter = catKey;
+  document.querySelectorAll("#category-filter-group .filter-chip").forEach(b => b.classList.remove("active"));
+  if (btnEl) btnEl.classList.add("active");
+  renderMapAndFeed();
+}
+
+function resetMapFilters() {
+  currentTimeFilter = "all";
+  currentCatFilter = "all";
+  document.getElementById("status-filter-select").value = "active";
+  document.querySelectorAll("#time-filter-group .filter-chip").forEach((b, i) => b.classList.toggle("active", i === 0));
+  document.querySelectorAll("#category-filter-group .filter-chip").forEach((b, i) => b.classList.toggle("active", i === 0));
+  renderMapAndFeed();
+}
+
+function zoomMap(factor) {
+  mapZoom = Math.min(2.8, Math.max(0.85, mapZoom * factor));
+  renderMap();
+}
+
+function resetMapView() {
+  mapZoom = 1.0;
+  mapPanX = 0;
+  mapPanY = 0;
+  renderMap();
+}
+
+function showToast(message, isCritical = false) {
+  const container = document.getElementById("toast-container");
+  const card = document.createElement("div");
+  card.className = "toast-card" + (isCritical ? " critical" : "");
+  card.innerHTML = `<div style="font-weight:700;margin-bottom:3px;">${isCritical ? "🚨 緊急警戒アラート" : "🔔 システム通知"}</div><div>${message}</div>`;
+  container.appendChild(card);
+  setTimeout(() => {
+    card.style.opacity = "0";
+    card.style.transition = "opacity 0.3s";
+    setTimeout(() => card.remove(), 350);
+  }, 4500);
+}
+
+// マップ上のマウス操作（ドラッグパン・座標取得・ホバー座標表示）
+function initMapInteractions() {
+  const viewport = document.getElementById("map-viewport");
+  const svg = document.getElementById("gis-svg");
+
+  viewport.addEventListener("mousedown", (e) => {
+    if (pickCoordMode) {
+      const rect = svg.getBoundingClientRect();
+      const rawX = ((e.clientX - rect.left) / rect.width) * 900;
+      const rawY = ((e.clientY - rect.top) / rect.height) * 620;
+      const adjX = (rawX - mapPanX) / mapZoom;
+      const adjY = (rawY - mapPanY) / mapZoom;
+      const { lat, lng } = xyToLatLng(adjX, adjY);
+      document.getElementById("form-coords").value = `${lat}, ${lng}`;
+      toggleCoordPickMode();
+      openQuickReport();
+      showToast(`地図上のクリック位置（北緯 ${lat}°, 東経 ${lng}°）を投稿フォームにセットしました。`);
+      return;
+    }
+    if (e.target.closest(".map-pin-group")) return;
+    isDraggingMap = true;
+    dragStartX = e.clientX - mapPanX;
+    dragStartY = e.clientY - mapPanY;
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    const rect = svg.getBoundingClientRect();
+    if (rect.width > 0) {
+      const rawX = ((e.clientX - rect.left) / rect.width) * 900;
+      const rawY = ((e.clientY - rect.top) / rect.height) * 620;
+      if (rawX >= 0 && rawX <= 900 && rawY >= 0 && rawY <= 620) {
+        const { lat, lng } = xyToLatLng((rawX - mapPanX) / mapZoom, (rawY - mapPanY) / mapZoom);
+        document.getElementById("map-coord-bar").textContent = `北緯 ${lat.toFixed(4)}° 東経 ${lng.toFixed(4)}° | 倍率 ${mapZoom.toFixed(1)}x (オフラインGISキャッシュ稼働中)`;
+      }
+    }
+    if (!isDraggingMap) return;
+    mapPanX = Math.max(-450, Math.min(450, e.clientX - dragStartX));
+    mapPanY = Math.max(-300, Math.min(300, e.clientY - dragStartY));
+    const g = document.getElementById("map-PanZoom-Group");
+    if (g) g.setAttribute("transform", `translate(${mapPanX}, ${mapPanY}) scale(${mapZoom})`);
+  });
+
+  window.addEventListener("mouseup", () => {
+    isDraggingMap = false;
+  });
+}
+
+// 初期化
+window.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("form-datetime").value = "2026-10-14T16:15";
+  initMapInteractions();
+  renderRegisteredPoints();
+  renderNotificationLogs();
+  renderMapAndFeed();
+  window.addEventListener("resize", () => {
+    if (document.getElementById("tab-analytics").classList.contains("active")) {
+      renderAnalyticsCharts();
+    }
+  });
+});
+</script>
+</body>
+</html>
